@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useBike } from '../bike/store';
 import { useHud } from '../game/hudStore';
@@ -186,11 +187,19 @@ const profileColor = (map: GameMap) =>
   map.theme.terrain.bands[Math.floor(map.theme.terrain.bands.length / 2)]?.color ?? '#9fd27f';
 
 export const Hud = ({ map, setup }: { map: GameMap; setup: RideSetup }) => {
+  const insets = useSafeAreaInsets();
   const finished = useHud((s) => s.finishedAt !== null);
   // Bots in a race, or household ghosts in a time trial.
   const hasRivals = useHud((s) => s.standings.length > 1);
   return (
-    <View pointerEvents='box-none' style={StyleSheet.absoluteFill}>
+    // The 3D scene stays full-bleed; the overlay sits inside the safe area so system bars never cover it.
+    <View
+      pointerEvents='box-none'
+      style={[
+        StyleSheet.absoluteFill,
+        { top: insets.top, bottom: insets.bottom, left: insets.left, right: insets.right }
+      ]}
+    >
       <MetricsBar />
       {finished ? null : (
         <>
