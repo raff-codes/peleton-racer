@@ -12,6 +12,7 @@ import android.os.IBinder
 import android.os.Message
 import android.os.Messenger
 import android.os.Parcel
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.os.bundleOf
 import expo.modules.kotlin.modules.Module
@@ -36,6 +37,13 @@ private const val V2_TRANSACT_GET_BIKE_DATA = 14
 private const val V2_POLL_MS = 100L
 
 private const val BIKE_PLUS_MODEL = "PLTN-TTR01"
+
+// Experiment: log every raw reading as CSV so we can see whether power / the load cell pulse with each pedal
+// stroke (enough to phase-lock the on-screen cranks). `adb logcat -s PelotonTrace`. At 90 rpm a stroke lasts
+// ~330 ms, so the Bike+ is polled faster while tracing; JS still gets a sample every V2_POLL_MS.
+private const val TRACE_STROKES = true
+private const val TRACE_TAG = "PelotonTrace"
+private const val V2_TRACE_POLL_MS = 20L
 
 class PelotonSensorsModule : Module() {
   private var connection: ServiceConnection? = null
@@ -156,7 +164,9 @@ class PelotonSensorsModule : Module() {
           }
           val data: Bundle = msg.data
           if (data.getString("responseHexString") == "TIME_OUT" || !data.containsKey("data")) return
-          onValue(data.getFloat("data"))
+          val value = data.getFloat("data")
+          if (TRACE_STROKES) Log.d(TRACE_TAG, "${SystemClock.elapsedRealtime()},v1,$command,$value")
+          onValue(value)
           emitSample()
         }
       }
@@ -184,6 +194,7 @@ class PelotonSensorsModule : Module() {
     polling.set(true)
     thread(name = "PelotonSensorsPoll") {
       var consecutiveErrors = 0
+      var lastEmit = 0L
       while (polling.get()) {
         val request = Parcel.obtain()
         val reply = Parcel.obtain()
@@ -196,14 +207,21 @@ class PelotonSensorsModule : Module() {
           // currentResistance, targetResistance (ints). We only need these leading fields.
           val rpm = reply.readLong()
           val centiwatts = reply.readLong()
-          reply.readLong()
-          reply.readLong()
-          reply.readInt()
+          val stepper = reply.readLong()
+          val loadCell = reply.readLong()
+          val currentResistance = reply.readInt()
           val targetResistance = reply.readInt()
           cadence = rpm.toDouble()
           power = centiwatts / 100.0
           resistance = targetResistance.toDouble()
-          emitSample()
+          val now = SystemClock.elapsedRealtime()
+          if (TRACE_STROKES) {
+            Log.d(TRACE_TAG, "$now,v2,$rpm,$centiwatts,$stepper,$loadCell,$currentResistance,$targetResistance")
+          }
+          if (now - lastEmit >= V2_POLL_MS) {
+            lastEmit = now
+            emitSample()
+          }
           consecutiveErrors = 0
         } catch (e: Exception) {
           consecutiveErrors++
@@ -216,7 +234,7 @@ class PelotonSensorsModule : Module() {
           request.recycle()
           reply.recycle()
         }
-        Thread.sleep(V2_POLL_MS)
+        Thread.sleep(if (TRACE_STROKES) V2_TRACE_POLL_MS else V2_POLL_MS)
       }
     }
   }
