@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "files": {
+    "includes": [
+      "**",
+      "!node_modules",
+      "!android",
+      "!ios",
+      "!.expo",
+      "!dist",
+      "!**/*.config.js",
+      "!modules/*/android/build",
+      "!pnpm-lock.yaml"
+    ]
+  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": { "useImportType": "off", "useNumberNamespace": "off", "useTemplate": "off" },
+      "correctness": { "noUnusedVariables": "error", "useExhaustiveDependencies": "warn" },
+      "suspicious": { "noArrayIndexKey": "off" },
+      "complexity": { "noForEach": "off" }
+    }
+  },
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 120 },
+  "javascript": {
+    "formatter": { "semicolons": "always", "quoteStyle": "single", "jsxQuoteStyle": "single", "trailingCommas": "none" }
+  }
+}

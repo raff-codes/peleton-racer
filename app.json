@@ -1,25 +1,33 @@
 {
   "expo": {
-    "name": "peleton",
+    "name": "Peleton Racer",
     "slug": "peleton",
-    "version": "1.0.0",
-    "orientation": "portrait",
+    "version": "0.1.0",
+    "orientation": "landscape",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "ios": {
-      "supportsTablet": true
-    },
+    "userInterfaceStyle": "dark",
+    "platforms": ["android"],
     "android": {
+      "package": "com.raffmendes.peleton",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0a0e14",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "plugins": [
+      "expo-asset",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "# expo-gl's GLView is created reflectively and ships no keep rules; R8 strips its constructor.\n-keep class expo.modules.gl.** { *; }"
+          }
+        }
+      ],
+      "expo-sqlite"
+    ]
   }
 }

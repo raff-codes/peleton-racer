@@ -1,0 +1,10 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Granted to sideloaded apps on the Peloton tablet; needed to bind the sensor services. -->
+  <uses-permission android:name="onepeloton.permission.ACCESS_SENSOR_SERVICE" />
+  <uses-permission android:name="onepeloton.permission.SUBSCRIPTION_TYPE_ACCESS" />
+
+  <queries>
+    <package android:name="com.peloton.service.SensorData" />
+    <package android:name="com.onepeloton.affernetservice" />
+  </queries>
+</manifest>
