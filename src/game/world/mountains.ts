@@ -110,7 +110,7 @@ export const createMountainsLayer = (ctx: WorldContext): WorldLayer => {
       const angle = ((k + (jitter[k] as number)) / segments) * Math.PI * 2;
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
-      const crest = ridged(cos * ridge.frequency, sin * ridge.frequency, 4, seed) ** 1.4;
+      const crest = ridged(cos * ridge.frequency, sin * ridge.frequency, 4, seed) ** mountains.sharpness;
       const detail = noise2(cos * 14 + 3.1, sin * 14 - 1.7, seed + 7) * 2 - 1;
       // Highest ground the shoulder has to clear (the square's corners reach past the extent).
       const edge =

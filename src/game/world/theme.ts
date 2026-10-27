@@ -45,11 +45,16 @@ export type Theme = {
     frozen: boolean;
   } | null;
   mountains: {
-    /** Ring radius and how deep the ring is, m */
+    /**
+     * Ring radius and how deep the ring is, m. The front ridge must clear the terrain's edge:
+     * keep `radius − 0.32 × depth` above ~1.07 × the terrain extent.
+     */
     radius: number;
     depth: number;
     /** Peak height above the lowest road point, m */
     height: number;
+    /** Exponent on the ridge noise: higher gives fewer, sharper peaks; below 1, rounder hills */
+    sharpness: number;
     base: string;
     snow: string;
     /** Fraction of peak height where snow starts */
@@ -150,9 +155,10 @@ export const ALPINE: Theme = {
   },
   water: { x: 0, z: 0, radius: 120, depth: 6, color: '#3f86b8', shallow: '#6fb3cf', frozen: false },
   mountains: {
-    radius: 1250,
-    depth: 350,
-    height: 420,
+    radius: 1220,
+    depth: 330,
+    height: 500,
+    sharpness: 1.8,
     base: '#62717f',
     snow: '#f2f6fb',
     snowLine: 0.48,
@@ -209,7 +215,7 @@ export const WINTER: Theme = {
     extent: 1000,
     hillAmplitude: 18,
     hillScale: 220,
-    edgeRise: { start: 520, end: 980, height: 85 },
+    edgeRise: { start: 480, end: 960, height: 110 },
     // Mostly hidden under the snow; they show in the snow's blend into rock on steep ground.
     bands: [
       { height: -12, color: '#dfe7ef' },
@@ -225,9 +231,10 @@ export const WINTER: Theme = {
   },
   water: { x: 20, z: -15, radius: 105, depth: 5, color: '#a9c6da', shallow: '#dce9f2', frozen: true },
   mountains: {
-    radius: 1250,
-    depth: 350,
-    height: 460,
+    radius: 1170,
+    depth: 260,
+    height: 520,
+    sharpness: 1.3,
     base: '#7b8695',
     snow: '#f4f7fb',
     snowLine: 0.2,
@@ -308,9 +315,10 @@ export const AUTUMN: Theme = {
   },
   water: { x: -25, z: 10, radius: 95, depth: 6, color: '#3b6f78', shallow: '#7da59a', frozen: false },
   mountains: {
-    radius: 1250,
-    depth: 350,
-    height: 440,
+    radius: 1260,
+    depth: 360,
+    height: 340,
+    sharpness: 0.9,
     base: '#6e6150',
     snow: '#f3efe8',
     snowLine: 0.72,
@@ -376,7 +384,7 @@ export const GOLDEN_HOUR: Theme = {
     extent: 1000,
     hillAmplitude: 12,
     hillScale: 280,
-    edgeRise: { start: 520, end: 980, height: 60 },
+    edgeRise: { start: 520, end: 980, height: 40 },
     bands: [
       { height: -12, color: '#6f9440' },
       { height: 0, color: '#80a447' },
@@ -391,9 +399,10 @@ export const GOLDEN_HOUR: Theme = {
   // Deep water reflects the violet zenith; the grazing shallows catch the horizon's peach.
   water: { x: 0, z: 0, radius: 125, depth: 7, color: '#8a6f9e', shallow: '#e9a47c', frozen: false },
   mountains: {
-    radius: 1250,
-    depth: 350,
-    height: 400,
+    radius: 1450,
+    depth: 400,
+    height: 330,
+    sharpness: 1.2,
     base: '#6c5b8a',
     // Alpenglow.
     snow: '#f4c9c0',
