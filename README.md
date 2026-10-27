@@ -54,12 +54,12 @@ profiles and ride history. Nothing goes to the cloud.
 
 ## Maps
 
-|                                                                             | Course                                                                                             | Lap    | Climbing | Max gradient |
-| --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------ | -------- | ------------ |
-| <img src="docs/images/alpine-lake.jpg" width="260" alt="Alpine Valley">     | **Alpine Valley**: two punchy climbs past a lake under snow-capped peaks                           | 2.1 km | 31 m     | 6.5%         |
-| <img src="docs/images/winter-pass.jpg" width="260" alt="Winter Pass">       | **Winter Pass**: one long drag up the pass in falling snow, then a fast descent past a frozen lake | 2.2 km | 31 m     | 5.9%         |
-| <img src="docs/images/autumn-forest.jpg" width="260" alt="Autumn Forest">   | **Autumn Forest**: twisting lanes and short, steep kickers through red and gold woods              | 2.0 km | 29 m     | 6.7%         |
-| <img src="docs/images/golden-hour.jpg" width="260" alt="Golden Hour Lakes"> | **Golden Hour Lakes**: a fast, nearly flat lakeside loop in low evening sun                        | 2.3 km | 15 m     | 3.1%         |
+|                                                                             | Course                                                                                                        | Lap    | Climbing | Max gradient |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------ | -------- | ------------ |
+| <img src="docs/images/alpine-lake.jpg" width="260" alt="Alpine Valley">     | **Alpine Valley**: a lakeside sprint finish and two punchy climbs towards the peaks, past a hilltop chapel    | 2.1 km | 38 m     | 8.3%         |
+| <img src="docs/images/winter-pass.jpg" width="260" alt="Winter Pass">       | **Winter Pass**: four hairpins up the pass in falling snow, through an avalanche gallery, then a long descent | 3.0 km | 54 m     | 7.0%         |
+| <img src="docs/images/autumn-forest.jpg" width="260" alt="Autumn Forest">   | **Autumn Forest**: twisting lanes and short, steep kickers under a ruined tower, with an uphill finish        | 2.0 km | 25 m     | 10.3%        |
+| <img src="docs/images/golden-hour.jpg" width="260" alt="Golden Hour Lakes"> | **Golden Hour Lakes**: fast and nearly flat, sprinting down a lakeside straight past the boathouse            | 2.4 km | 6 m      | 1.4%         |
 
 ## A look around
 
@@ -138,8 +138,11 @@ barely touches them each frame. A whole map is about 16 draw calls:
 | High    | ~200–230k         | Bike+, emulator, phones |
 | Low     | ~90–105k          | Original Bike           |
 
-A new look is just a new `Theme` object, and a new map is one entry in `src/game/maps.ts`: a circuit shape
-(radius, bend and hill harmonics) paired with a theme.
+A new look is just a new `Theme` object, and a new map is one entry in `src/game/maps.ts`: a circuit drawn
+through control points (`buildCircuit`: x, z and height per point, with a `hairpin` helper), a theme and
+its landmarks. The land shapes itself to the road, with cuttings, banks and terraced switchbacks, and
+bends are banked. Run `pnpm maps:report` to check a circuit's climbs, grades and bends against its
+tagline.
 
 ## Put it on your bike
 
@@ -178,6 +181,7 @@ pnpm dev          # build a dev client onto a connected device or emulator
 pnpm start        # Metro for the dev client
 pnpm typecheck    # strict TypeScript
 pnpm lint         # Biome
+pnpm maps:report  # each circuit's climbs, grades and bends
 ```
 
 The race logic and physics are plain TypeScript with no React or three.js, so you can simulate a whole race

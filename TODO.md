@@ -35,6 +35,7 @@ before starting the next, except for small polish items.
 - [ ] Point-to-point routes (not just loops) with a distance/elevation summary on the start screen
 - [x] Theme system (`src/game/world/theme.ts`): palette, light, terrain shape, vegetation, roadside all data-driven; Alpine built
 - [x] Maps: Alpine Valley, Winter Pass (snowfall, frozen lake), Autumn Forest (falling leaves), Golden Hour Lakes — each its own circuit + theme, picked from a map-select screen
+- [x] Maps redrawn as point-built circuits (hairpins, straights, a deliberate finish), the land shaped to the road (cuttings, banks, terraced switchbacks), banked bends, soft ground shadows, a mountain ring and a landmark per map
 - [ ] More maps: coast, desert, night
 - [ ] Import real routes from GPX (elevation from the file, xz from a lat/lon projection)
 

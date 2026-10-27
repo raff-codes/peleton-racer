@@ -13,8 +13,10 @@ and layout. General Expo guidance is in `AGENTS.md`, but note the deviations bel
 - Ride data is local-only SQLite (`src/data/db.ts`). Schema changes: append a new entry to `MIGRATIONS`, never edit
   an existing one (it's applied by `PRAGMA user_version`). Saved traces are replayed as ghosts, so keep the
   `RideTrace` format backward compatible.
-- Maps (`src/game/maps.ts`) pair a `buildLoop` circuit with a `Theme`. Circuits must stay ~210–450 m from the origin
-  (lake inside, foothills outside).
+- Maps (`src/game/maps.ts`) pair a circuit (`buildCircuit` through control points) with a `Theme` and landmarks.
+  Circuits must stay ~210–450 m from the origin (lake inside, foothills outside); `pnpm maps:report` checks.
+  A map id names a course: rides, bests and ghosts are keyed by it, so never change a track in place. Give
+  the new course a new id and move the old one to `RETIRED_MAPS` so its rides still resolve.
 - The render loop (`useFrame`) must not trigger React renders per frame. Game state is mutable in `race.ts`;
   the HUD gets throttled snapshots via `useHud.publish`.
 - Physics and race logic stay pure TS (no React/three imports) so they can be simulated headless with `tsx`.
