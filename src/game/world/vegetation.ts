@@ -284,6 +284,15 @@ export const createVegetationLayer = (ctx: WorldContext): WorldLayer => {
     rock: buildRockGeometry(snowy)
   };
 
+  // Each model's footprint radius and height at scale 1, for its ground shadow.
+  const sizes = {} as Record<Kind, { radius: number; height: number }>;
+  for (const kind of Object.keys(geometries) as Kind[]) {
+    const geometry = geometries[kind];
+    geometry.computeBoundingBox();
+    const box = geometry.boundingBox as THREE.Box3;
+    sizes[kind] = { radius: Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / 2, height: box.max.y };
+  }
+
   const leanRandom = createRandom(theme.seed + 4);
   const object = new THREE.Group();
   object.name = 'vegetation';
@@ -301,6 +310,14 @@ export const createVegetationLayer = (ctx: WorldContext): WorldLayer => {
       rotation.multiplyQuaternions(lean, yawQ);
       mesh.setMatrixAt(i, matrix.compose(position.set(p.x, p.y, p.z), rotation, p.scale));
       mesh.setColorAt(i, p.color);
+      const size = sizes[kind];
+      ctx.shadows.push({
+        x: p.x,
+        y: p.y,
+        z: p.z,
+        radius: size.radius * Math.max(p.scale.x, p.scale.z),
+        height: size.height * p.scale.y
+      });
     });
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;

@@ -110,6 +110,9 @@ const placeFans = (ctx: WorldContext, frame: RoadFrame) => {
   return { fans, counts };
 };
 
+/** A fan's ground shadow footprint and height at scale 1, m. */
+const FAN_SHADOW = { radius: 0.32, height: 1.7 };
+
 /** Seconds; uTime wraps here so sin() keeps its precision on mediump-leaning mobile GPUs. */
 export const TIME_WRAP_S = 600;
 
@@ -194,6 +197,7 @@ export const createSpectators = (ctx: WorldContext, frame: RoadFrame, time: { va
     const s = 0.9 + random() * 0.18;
     matrix.compose(position.set(fan.x, fan.y, fan.z), rotation, scale.set(s, s, s));
     mesh.setMatrixAt(i, matrix);
+    ctx.shadows.push({ x: fan.x, y: fan.y, z: fan.z, radius: FAN_SHADOW.radius * s, height: FAN_SHADOW.height * s });
     cheer.set([random() * Math.PI * 2, fan.energy], i * 2);
     const shirt = pick(shirtColors);
     const skin = pick(skinColors);

@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 
 import type { Track } from '../track';
+import type { ShadowCaster } from './groundShadows';
 import type { HeightField } from './heightField';
 import type { QualitySettings } from './quality';
 import type { RoadQuery } from './roadQuery';
@@ -16,6 +17,8 @@ export type WorldContext = {
   quality: QualitySettings;
   road: RoadQuery;
   ground: HeightField;
+  /** Ground shadows to draw, added to by the layers that place things (see `createGroundShadowsLayer`) */
+  shadows: ShadowCaster[];
 };
 
 /**

@@ -56,6 +56,8 @@ const FLAG_POLES_AT = [-52, -40, -28, -16, -6, 8, 18];
 // Hay
 /** Bales at HIGH quality for a hay density of 1 (the theme scales it). */
 const HAY_BALES_AT_HIGH = 18;
+/** A bale lying on its side (`buildHayBale`'s default 0.65 m radius, 1.2 m long): its shadow footprint. */
+const HAY_BALE_SHADOW = { radius: 0.8, height: 1.3 };
 
 /** Signed distance from the line for a lap distance: (-length/2, length/2]. */
 const fromLine = (track: Track, d: number) => (d > track.length / 2 ? d - track.length : d);
@@ -241,9 +243,9 @@ const buildHayBales = (ctx: WorldContext, detail: number) => {
       const z = cz + (random() - 0.5) * 6;
       if (!usable(x, z)) continue;
       const yaw = random() * Math.PI;
-      parts.push(
-        placed(buildHayBale(theme.roadside.hay), x, ground.heightAt(x, z) - 0.08, z, Math.sin(yaw), Math.cos(yaw))
-      );
+      const y = ground.heightAt(x, z) - 0.08;
+      parts.push(placed(buildHayBale(theme.roadside.hay), x, y, z, Math.sin(yaw), Math.cos(yaw)));
+      ctx.shadows.push({ x, y, z, radius: HAY_BALE_SHADOW.radius, height: HAY_BALE_SHADOW.height });
     }
   }
   return parts;

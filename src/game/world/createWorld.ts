@@ -1,5 +1,6 @@
 import type { Track } from '../track';
 import { createCloudsLayer } from './clouds';
+import { createGroundShadowsLayer } from './groundShadows';
 import { createHeightField } from './heightField';
 import { createLightingLayer } from './lighting';
 import { createMountainsLayer } from './mountains';
@@ -20,7 +21,14 @@ export type World = { context: WorldContext; layers: WorldLayer[] };
 /** Builds every scenery layer for a track. Expensive (hundreds of ms on the tablet): do it once per track/quality. */
 export const createWorld = (track: Track, theme: Theme, quality: QualitySettings): World => {
   const road = createRoadQuery(track);
-  const context: WorldContext = { track, theme, quality, road, ground: createHeightField(track, theme, road) };
+  const context: WorldContext = {
+    track,
+    theme,
+    quality,
+    road,
+    ground: createHeightField(track, theme, road),
+    shadows: []
+  };
   const layers = [
     createLightingLayer(context),
     createSkyLayer(context),
@@ -31,6 +39,8 @@ export const createWorld = (track: Track, theme: Theme, quality: QualitySettings
     createCloudsLayer(context),
     createVegetationLayer(context),
     createRoadsideLayer(context),
+    // After every layer that registers shadow casters.
+    createGroundShadowsLayer(context),
     createWeatherLayer(context)
   ].filter((layer): layer is WorldLayer => layer !== null);
   return { context, layers };
