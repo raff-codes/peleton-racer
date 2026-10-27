@@ -183,6 +183,9 @@ pnpm lint         # Biome
 pnpm maps:report  # each circuit's climbs, grades and bends
 ```
 
+Without a bike the HUD runs a power simulator: ±25 W buttons, and jump buttons that move the whole field
+100 m along the road to look round a course (rides that jump aren't saved).
+
 The race logic and physics are plain TypeScript with no React or three.js, so you can simulate a whole race
 headless with `tsx`, which is how drafting, lane changes and ghost replay were tuned.
 
