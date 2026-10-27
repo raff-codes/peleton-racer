@@ -219,6 +219,19 @@ export const createRace = (
   };
 };
 
+/**
+ * Moves every live rider `metres` along the road (negative goes back), keeping the field's
+ * order and gaps. For looking round a course in the simulator; nobody is carried past the
+ * finish, and ghosts stay on their recordings.
+ */
+export const skipAhead = (race: Race, metres: number) => {
+  const raceDistance = race.track.length * race.laps;
+  for (const rider of race.riders) {
+    if (rider.ghost || rider.finishedAt !== null) continue;
+    rider.distance = Math.min(raceDistance - 1, rider.distance + metres);
+  }
+};
+
 /** Road distance from `rider` forward to `other`, wrapping round the lap (0 ≤ gap < track length). */
 const gapAhead = (track: Track, rider: Rider, other: Rider) =>
   (((other.distance - rider.distance) % track.length) + track.length) % track.length;

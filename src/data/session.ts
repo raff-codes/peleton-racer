@@ -1,6 +1,14 @@
 import type { GameMap } from '../game/maps';
 import { RIDER } from '../game/physics';
-import { type GhostEntry, PLAYER_ID, type PlayerEntry, type Race, type RideSetup, standings } from '../game/race';
+import {
+  type GhostEntry,
+  PLAYER_ID,
+  type PlayerEntry,
+  type Race,
+  type RideSetup,
+  skipAhead as skipRaceAhead,
+  standings
+} from '../game/race';
 import { courseBests, insertRide } from './db';
 import { activeProfile } from './profiles';
 import type { NewRide } from './types';
@@ -11,7 +19,15 @@ const MAX_GHOSTS = 5;
 
 export type PersonalBest = { isPb: boolean; previousS: number | null };
 
-type Session = { race: Race; map: GameMap; setup: RideSetup; startedAt: number; saved: boolean };
+type Session = {
+  race: Race;
+  map: GameMap;
+  setup: RideSetup;
+  startedAt: number;
+  saved: boolean;
+  /** The field was moved along the road: the ride isn't a real effort, so it's never saved */
+  skipped: boolean;
+};
 
 /** The ride in progress, so it can be saved from wherever it ends (finish line, pause menu). */
 let current: Session | null = null;
@@ -41,7 +57,7 @@ export const ghostsFor = (map: GameMap, setup: RideSetup): GhostEntry[] => {
 };
 
 export const beginSession = (race: Race, map: GameMap, setup: RideSetup) => {
-  current = { race, map, setup, startedAt: Date.now(), saved: false };
+  current = { race, map, setup, startedAt: Date.now(), saved: false, skipped: false };
 };
 
 const toRecord = (session: Session, profileId: number): NewRide => {
@@ -72,7 +88,7 @@ const toRecord = (session: Session, profileId: number): NewRide => {
 /** Saves a finished ride once and reports whether it beat the rider's previous best here. */
 export const saveFinishedRide = (): PersonalBest | null => {
   const profile = activeProfile();
-  if (!current || current.saved || !profile) return null;
+  if (!current || current.saved || current.skipped || !profile) return null;
   const { map, setup } = current;
   const previous = courseBests(map.id, setup.laps).find((b) => b.profileId === profile.id) ?? null;
   const record = toRecord(current, profile.id);
@@ -84,9 +100,16 @@ export const saveFinishedRide = (): PersonalBest | null => {
 /** Keeps an unfinished ride (free ride, quitting mid-race) if it was long enough to count. */
 export const saveUnfinishedRide = () => {
   const profile = activeProfile();
-  if (!current || current.saved || !profile || current.race.elapsed < MIN_SAVED_S) return;
+  if (!current || current.saved || current.skipped || !profile || current.race.elapsed < MIN_SAVED_S) return;
   insertRide(toRecord(current, profile.id));
   current.saved = true;
+};
+
+/** Simulator only: moves the field `metres` along the road. The ride is then never saved. */
+export const skipAhead = (metres: number) => {
+  if (!current) return;
+  current.skipped = true;
+  skipRaceAhead(current.race, metres);
 };
 
 export const endSession = () => {

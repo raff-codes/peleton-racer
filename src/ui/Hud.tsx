@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useBike } from '../bike/store';
+import { skipAhead } from '../data/session';
 import { useHud } from '../game/hudStore';
 import type { GameMap } from '../game/maps';
 import type { RideMode, RideSetup } from '../game/race';
@@ -79,6 +80,9 @@ const DraftChip = () => {
   );
 };
 
+/** Simulator jump step, m. */
+const SKIP_M = 100;
+
 const ConnectionBadge = () => {
   const { source, state, detail, simPower, nudgeSimPower } = useBike();
   const fps = useHud((s) => s.fps);
@@ -105,6 +109,18 @@ const ConnectionBadge = () => {
           <Text style={styles.badgeText}>{simPower} W</Text>
           <Pressable onPress={() => nudgeSimPower(25)} style={styles.simButton}>
             <Text style={styles.simButtonText}>+25 W</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {source === 'simulator' ? (
+        // Move the field along the road to look round the course; a ride that jumps isn't saved.
+        <View style={styles.simRow}>
+          <Pressable onPress={() => skipAhead(-SKIP_M)} style={styles.simButton}>
+            <Text style={styles.simButtonText}>−{SKIP_M} m</Text>
+          </Pressable>
+          <Text style={styles.badgeText}>jump</Text>
+          <Pressable onPress={() => skipAhead(SKIP_M)} style={styles.simButton}>
+            <Text style={styles.simButtonText}>+{SKIP_M} m</Text>
           </Pressable>
         </View>
       ) : null}
