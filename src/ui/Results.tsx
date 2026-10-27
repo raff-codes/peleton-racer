@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { PersonalBest } from '../data/session';
-import { useHud } from '../game/hudStore';
+import { type HudStanding, useHud } from '../game/hudStore';
 import { PLAYER_ID, type RideMode } from '../game/race';
 import { useSettings } from '../game/settings';
 
@@ -40,6 +40,16 @@ const PersonalBestLine = ({ pb, finishedAt }: { pb: PersonalBest | null; finishe
   );
 };
 
+/** Rows shown in the results: the podium and top five, plus the player's own row if they're further down. */
+const RESULT_ROWS = 5;
+const resultRows = (standings: HudStanding[]) => {
+  const rows = standings.slice(0, RESULT_ROWS).map((rider, index) => ({ rider, index, gapBefore: false }));
+  const you = standings.findIndex((r) => r.id === PLAYER_ID);
+  const yours = standings[you];
+  if (you >= RESULT_ROWS && yours) rows.push({ rider: yours, index: you, gapBefore: true });
+  return rows;
+};
+
 /** Final classification and the player's numbers, shown once they've crossed the line. */
 export const Results = ({ mode }: { mode: RideMode }) => {
   const { finishedAt, elapsed, position, standings, stats, restart, personalBest } = useHud();
@@ -58,14 +68,14 @@ export const Results = ({ mode }: { mode: RideMode }) => {
       <PersonalBestLine finishedAt={finishedAt} pb={personalBest} />
       {standings.length > 1 ? (
         <View style={styles.table}>
-          {standings.map((r, i) => {
+          {resultRows(standings).map(({ rider: r, index: i, gapBefore }) => {
             const you = r.id === PLAYER_ID;
             let result: string;
             if (r.finishedAt === null) result = `${(Math.max(0, -r.gapM) / 1000).toFixed(2)} km to go`;
             else if (i === 0 || winnerTime === null) result = formatRaceTime(r.finishedAt);
             else result = `+${formatRaceTime(r.finishedAt - winnerTime)}`;
             return (
-              <View key={r.id} style={[styles.row, you && styles.rowYou]}>
+              <View key={r.id} style={[styles.row, you && styles.rowYou, gapBefore && styles.rowAfterGap]}>
                 <Text style={styles.pos}>{i + 1}</Text>
                 <View style={[styles.swatch, { backgroundColor: r.color }]} />
                 <Text style={[styles.name, you && styles.nameYou]}>{r.name}</Text>
@@ -113,6 +123,7 @@ const styles = StyleSheet.create({
   pbMissed: { color: '#9aa4b2', fontSize: 16, fontWeight: '600', marginTop: 6 },
   table: { alignSelf: 'stretch', marginTop: 18 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 10, borderRadius: 8 },
+  rowAfterGap: { marginTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)' },
   rowYou: { backgroundColor: 'rgba(255, 90, 31, 0.18)' },
   pos: { color: '#9aa4b2', width: 26, fontSize: 18, fontWeight: '700' },
   swatch: { width: 12, height: 12, borderRadius: 6, marginRight: 10 },

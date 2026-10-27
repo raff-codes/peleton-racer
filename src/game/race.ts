@@ -15,6 +15,7 @@ export type Rider = {
   laneCooldown: number;
   /** Fixed power for bots; null for the player and ghosts */
   botPower: number | null;
+  botStyle: BotStyle;
   /** A recorded ride replayed by time: ghosts follow it exactly and don't interact with anyone */
   ghost: RideTrace | null;
   /** Rider + bike, kg */
@@ -31,7 +32,7 @@ export type Rider = {
   finishedAt: number | null;
 };
 
-/** Race: you against three bots. Time trial: solo against the clock. Free ride: solo, no finish line. */
+/** Race: you against nine bots. Time trial: solo against the clock. Free ride: solo, no finish line. */
 export type RideMode = 'race' | 'timeTrial' | 'freeRide';
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -39,7 +40,42 @@ export type Difficulty = 'easy' | 'normal' | 'hard';
 export type RideSetup = { mode: RideMode; laps: number; difficulty: Difficulty };
 
 /** Bot watts are scaled by this; the roster's base efforts are tuned for "normal". */
-const DIFFICULTY_SCALE: Record<Difficulty, number> = { easy: 0.75, normal: 1, hard: 1.3 };
+export const DIFFICULTY_SCALE: Record<Difficulty, number> = { easy: 0.75, normal: 1, hard: 1.3 };
+
+/**
+ * How a bot spends its watts. Climbers dig in on steep ground, sprinters save it for the line,
+ * rouleurs press on the flats and descents. Steady riders just hold their number.
+ */
+export type BotStyle = 'steady' | 'climber' | 'sprinter' | 'rouleur';
+
+/** The bot field at "normal" difficulty: base watts spread so there's always someone near your level. */
+export const BOT_ROSTER: { id: string; name: string; color: string; watts: number; style: BotStyle }[] = [
+  { id: 'steady', name: 'Steady Sam', color: '#2d7ff9', watts: 125, style: 'steady' },
+  { id: 'dev', name: 'Domestique Dev', color: '#8d99ae', watts: 140, style: 'steady' },
+  { id: 'kai', name: 'Climbing Kai', color: '#06d6a0', watts: 150, style: 'climber' },
+  { id: 'rosa', name: 'Rouleur Rosa', color: '#ef476f', watts: 165, style: 'rouleur' },
+  { id: 'pete', name: 'Puncheur Pete', color: '#ffb703', watts: 180, style: 'climber' },
+  { id: 'tess', name: 'Tempo Tess', color: '#18b26b', watts: 195, style: 'steady' },
+  { id: 'sol', name: 'Sprinter Sol', color: '#f72585', watts: 205, style: 'sprinter' },
+  { id: 'bea', name: 'Breakaway Bea', color: '#4cc9f0', watts: 225, style: 'rouleur' },
+  { id: 'dan', name: 'Diesel Dan', color: '#b44dff', watts: 245, style: 'steady' }
+];
+
+/** Base-watt range of the bot field at a difficulty, for the menu. */
+export const botWattRange = (difficulty: Difficulty) => {
+  const watts = BOT_ROSTER.map((b) => Math.round(b.watts * DIFFICULTY_SCALE[difficulty]));
+  return { min: Math.min(...watts), max: Math.max(...watts) };
+};
+
+const CLIMB_GRADE = 0.03;
+const CLIMBER_BOOST = 1.15;
+const ROULEUR_BOOST = 1.08;
+const SPRINTER_BOOST = 1.3;
+const SPRINT_DISTANCE_M = 300;
+
+/** Start grid: three abreast, rows this far apart, player on the front row. */
+const GRID_LANES = [0, -2.2, 2.2];
+const GRID_ROW_GAP_M = 2.5;
 
 /** waiting → (first pedal stroke) → countdown → racing */
 export type RacePhase = 'waiting' | 'countdown' | 'racing';
@@ -119,7 +155,7 @@ const makeRider = (
   color: string,
   lane: number,
   botPower: number | null,
-  extra: { ghost?: RideTrace; massKg?: number } = {}
+  extra: { ghost?: RideTrace; massKg?: number; style?: BotStyle; distance?: number } = {}
 ): Rider => ({
   id,
   name,
@@ -128,10 +164,11 @@ const makeRider = (
   targetLane: lane,
   laneCooldown: 0,
   botPower,
+  botStyle: extra.style ?? 'steady',
   ghost: extra.ghost ?? null,
   massKg: extra.massKg ?? RIDER.massKg,
   speed: 0,
-  distance: 0,
+  distance: extra.distance ?? 0,
   draft: 0,
   heldBack: 0,
   mood: 'normal',
@@ -146,13 +183,18 @@ export const createRace = (
   ghosts: GhostEntry[] = []
 ): Race => {
   const scale = DIFFICULTY_SCALE[setup.difficulty];
+  // Bots fill the grid row by row; the player starts at the back so the chase camera sees the pack, not
+  // nine riders between it and the player. Over a 2 km+ race the few metres are noise.
+  const slot = (i: number) => ({
+    lane: GRID_LANES[i % GRID_LANES.length] ?? 0,
+    distance: -Math.floor(i / GRID_LANES.length) * GRID_ROW_GAP_M
+  });
   const bots =
     setup.mode === 'race'
-      ? [
-          makeRider('steady', 'Steady Sam', '#2d7ff9', -1.6, Math.round(140 * scale)),
-          makeRider('tempo', 'Tempo Tess', '#18b26b', 1.6, Math.round(190 * scale)),
-          makeRider('diesel', 'Diesel Dan', '#b44dff', -3, Math.round(240 * scale))
-        ]
+      ? BOT_ROSTER.map((b, i) => {
+          const { lane, distance } = slot(i);
+          return makeRider(b.id, b.name, b.color, lane, Math.round(b.watts * scale), { style: b.style, distance });
+        })
       : [];
   return {
     track,
@@ -165,7 +207,10 @@ export const createRace = (
     stats: { energyJ: 0, distanceM: 0, maxPower: 0, maxSpeed: 0, draftSeconds: 0 },
     trace: { t: [], d: [] },
     riders: [
-      makeRider(PLAYER_ID, player.name, player.color, 0, null, { massKg: player.massKg }),
+      makeRider(PLAYER_ID, player.name, player.color, 0, null, {
+        massKg: player.massKg,
+        distance: bots.length ? slot(Math.ceil(bots.length / GRID_LANES.length) * GRID_LANES.length).distance : 0
+      }),
       ...bots,
       ...ghosts.map((g, i) =>
         makeRider(g.id, g.name, g.color, GHOST_LANES[i % GHOST_LANES.length] ?? 0, null, { ghost: g.trace })
@@ -279,6 +324,17 @@ const traceTimeAt = (trace: RideTrace, distance: number) => {
   return null;
 };
 
+/** A bot's watts right now: its base effort, a slow surge, and a boost where its style is strongest. */
+const botEffort = (race: Race, rider: Rider, base: number, raceDistance: number) => {
+  const surge = BOT_SURGE_W * Math.sin(race.elapsed / 9 + base);
+  const { grade } = poseAt(race.track, rider.distance);
+  let boost = 1;
+  if (rider.botStyle === 'climber' && grade > CLIMB_GRADE) boost = CLIMBER_BOOST;
+  if (rider.botStyle === 'rouleur' && grade < CLIMB_GRADE / 2) boost = ROULEUR_BOOST;
+  if (rider.botStyle === 'sprinter' && raceDistance - rider.distance < SPRINT_DISTANCE_M) boost = SPRINTER_BOOST;
+  return (base + surge) * boost;
+};
+
 /** Advances the race. Nothing moves until the player pedals and the countdown ends. */
 export const stepRace = (race: Race, rawPlayerPower: number, dt: number) => {
   race.playerPower += (rawPlayerPower - race.playerPower) * (1 - Math.exp(-dt / POWER_SMOOTHING_S));
@@ -310,10 +366,7 @@ export const stepRace = (race: Race, rawPlayerPower: number, dt: number) => {
 
     chooseLane(race, rider, dt);
 
-    const power =
-      rider.botPower === null
-        ? race.playerPower
-        : rider.botPower + BOT_SURGE_W * Math.sin(race.elapsed / 9 + rider.botPower);
+    const power = rider.botPower === null ? race.playerPower : botEffort(race, rider, rider.botPower, raceDistance);
     const ahead = nearestAhead(race, rider, DRAFT_END_GAP_M, true);
     rider.draft = ahead ? draftFor(ahead.gap) : 0;
 

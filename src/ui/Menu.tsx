@@ -5,7 +5,7 @@ import Svg, { Circle, Defs, LinearGradient, Path, Polygon, Rect, Stop } from 're
 import { courseBests } from '../data/db';
 import { useActiveProfile, useProfiles } from '../data/profiles';
 import { type GameMap, lapStats, MAPS } from '../game/maps';
-import type { Difficulty, RideMode } from '../game/race';
+import { botWattRange, type Difficulty, type RideMode } from '../game/race';
 import { useSettings } from '../game/settings';
 import type { Track } from '../game/track';
 import { createRandom } from '../game/world/noise';
@@ -159,17 +159,22 @@ const Chips = <T extends string | number>({
 );
 
 const MODES: { value: RideMode; label: string; detail: string }[] = [
-  { value: 'race', label: 'Race', detail: 'Beat three rivals to the line' },
+  { value: 'race', label: 'Race', detail: 'Beat nine rivals to the line' },
   { value: 'timeTrial', label: 'Time trial', detail: 'Solo, against the clock' },
   { value: 'freeRide', label: 'Free ride', detail: 'No finish line, ride as long as you like' }
 ];
 
 const LAP_OPTIONS = [1, 2, 3, 5];
 
+const wattDetail = (difficulty: Difficulty) => {
+  const { min, max } = botWattRange(difficulty);
+  return `${min}–${max} W`;
+};
+
 const DIFFICULTIES: { value: Difficulty; label: string; detail: string }[] = [
-  { value: 'easy', label: 'Easy', detail: '105–180 W' },
-  { value: 'normal', label: 'Normal', detail: '140–240 W' },
-  { value: 'hard', label: 'Hard', detail: '180–310 W' }
+  { value: 'easy', label: 'Easy', detail: wattDetail('easy') },
+  { value: 'normal', label: 'Normal', detail: wattDetail('normal') },
+  { value: 'hard', label: 'Hard', detail: wattDetail('hard') }
 ];
 
 /** Start screen: pick what to ride, where, and how far. */

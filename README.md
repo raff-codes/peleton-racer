@@ -26,7 +26,7 @@ Your real watts move you through low-poly mountains, and everyone in your househ
 
 The Peloton Bike already measures power, cadence and resistance. Peleton Racer reads those numbers on
 the bike's own tablet and turns them into a race: a road-cycling physics model converts your watts into
-speed on hilly circuits, three AI rivals try to drop you, and you can chase the best times of everyone
+speed on hilly circuits, nine AI rivals try to drop you, and you can chase the best times of everyone
 else in your house.
 
 It's an Expo / React Native app with a [React Three Fiber](https://github.com/pmndrs/react-three-fiber)
@@ -39,7 +39,7 @@ profiles and ride history. Nothing goes to the cloud.
   weight. Climbs hurt, descents are free, and a lighter rider goes uphill faster for the same watts.
 - **Drafting and racing lines.** Sit on a wheel to cut drag by up to 30%. Riders steer themselves,
   tucking in behind to draft and pulling out to pass.
-- **Three ways to ride.** _Race_ three bots (Easy, Normal or Hard), _Time trial_ against the clock, or
+- **Three ways to ride.** _Race_ nine bots with different riding styles (Easy, Normal or Hard), _Time trial_ against the clock, or
   _Free ride_ with no finish line. Distances from 1 to 5 laps.
 - **Four maps, each with its own course and look.** Alpine Valley, Winter Pass, Autumn Forest and Golden
   Hour Lakes. Each has its own circuit, climbs, weather and light.
