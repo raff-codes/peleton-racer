@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import type { PersonalBest } from '../data/session';
+import type { Mood } from './mood';
 import type { RacePhase } from './race';
 
 export type HudStanding = {
@@ -34,6 +35,7 @@ type HudStore = {
   countdown: number;
   /** Drag saved by drafting right now, % */
   draftPct: number;
+  mood: Mood;
   position: number;
   standings: HudStanding[];
   finishedAt: number | null;
@@ -59,6 +61,7 @@ export const useHud = create<HudStore>((set) => ({
   phase: 'waiting',
   countdown: 0,
   draftPct: 0,
+  mood: 'normal',
   position: 1,
   standings: [],
   finishedAt: null,

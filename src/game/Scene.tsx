@@ -4,6 +4,7 @@ import * as THREE from 'three';
 
 import { useBike } from '../bike/store';
 import { beginSession, ghostsFor, playerForActiveProfile, saveFinishedRide } from '../data/session';
+import { useDevTools } from './devTools';
 import { Confetti, FinishLine } from './FinishLine';
 import { useHud } from './hudStore';
 import { MoodEffects } from './MoodEffects';
@@ -148,6 +149,8 @@ const World = ({ map, setup }: { map: GameMap; setup: RideSetup }) => {
     stepRace(race, sample.power, dt);
 
     const player = race.riders.find((r) => r.id === PLAYER_ID) as Rider;
+    const { moodOverride } = useDevTools.getState();
+    if (moodOverride) player.mood = moodOverride;
     if (player.finishedAt !== null) {
       if (sinceFinish.current === null) {
         sinceFinish.current = 0;
@@ -215,6 +218,7 @@ const publishHud = (race: Race, fps: number) => {
     phase: race.phase,
     countdown: race.countdown,
     draftPct: player.draft * 100,
+    mood: player.mood,
     position: order.findIndex((r) => r.id === PLAYER_ID) + 1,
     standings: order.map((r) => ({
       id: r.id,

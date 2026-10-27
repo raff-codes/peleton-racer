@@ -9,6 +9,7 @@ import { useBikeConnection } from './src/bike/useBikeConnection';
 import { useActiveProfile } from './src/data/profiles';
 import { GameScene } from './src/game/Scene';
 import { useCurrentRide, useSettings } from './src/game/settings';
+import { DevToolbar } from './src/ui/DevToolbar';
 import { History } from './src/ui/History';
 import { Hud } from './src/ui/Hud';
 import { Menu } from './src/ui/Menu';
@@ -38,6 +39,7 @@ export default function App() {
         <>
           <GameScene map={ride.map} setup={ride.setup} />
           <Hud map={ride.map} setup={ride.setup} />
+          <DevToolbar />
         </>
       );
     }
