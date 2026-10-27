@@ -13,6 +13,10 @@ import type { Race, Rider } from './race';
 import { curvatureAt, poseAt } from './track';
 
 const MAX_LEAN_RAD = 0.6;
+/** A sleepy rider wobbles side to side: amplitude, rate (rad/s) and how fast it fades in and out. */
+const DROWSY_SWAY_RAD = 0.09;
+const DROWSY_SWAY_RATE = 1.7;
+const DROWSY_EASE_S = 0.8;
 const G = 9.81;
 const FORWARD = new THREE.Vector3(0, 0, 1);
 const CRANK_AXIS = new THREE.Vector3(1, 0, 0);
@@ -31,7 +35,15 @@ const SHADOW_FLAT = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,
 const SHADOW_OFFSET = new THREE.Vector3(0, SHADOW_LIFT_M, 0);
 const SHADOW_SCALE = new THREE.Vector3(0.45, 1.05, 1);
 
-type RiderNode = { id: string; root: THREE.Group; lean: THREE.Group; crankAngle: number };
+type RiderNode = {
+  id: string;
+  root: THREE.Group;
+  lean: THREE.Group;
+  crankAngle: number;
+  /** 0–1: how far into the sleepy wobble, eased so it doesn't snap on or off */
+  drowse: number;
+  swayPhase: number;
+};
 
 /**
  * Every rider in the race, built imperatively so the frame loop can pose them without React.
@@ -64,7 +76,7 @@ export class RiderPack {
       lean.add(new THREE.Mesh(body, this.material));
       root.add(lean);
       this.root.add(root);
-      return { id: r.id, root, lean, crankAngle: riders.indexOf(r) * 1.3 };
+      return { id: r.id, root, lean, crankAngle: riders.indexOf(r) * 1.3, drowse: 0, swayPhase: 0 };
     });
 
     const instanced = (geometry: THREE.BufferGeometry, count: number) => {
@@ -102,7 +114,10 @@ export class RiderPack {
       node.root.rotation.set(-Math.atan(pose.grade), Math.atan2(pose.dirX, pose.dirZ), 0, 'YXZ');
       // Lean into corners like a real bike: tan(lean) = v²κ / g.
       const lean = Math.atan((rider.speed * rider.speed * curvatureAt(race.track, rider.distance)) / G);
-      node.lean.rotation.z = Math.max(-MAX_LEAN_RAD, Math.min(MAX_LEAN_RAD, lean));
+      node.drowse += ((rider.mood === 'sleepy' ? 1 : 0) - node.drowse) * (1 - Math.exp(-dt / DROWSY_EASE_S));
+      node.swayPhase += dt * DROWSY_SWAY_RATE;
+      const sway = node.drowse * DROWSY_SWAY_RAD * Math.sin(node.swayPhase);
+      node.lean.rotation.z = Math.max(-MAX_LEAN_RAD, Math.min(MAX_LEAN_RAD, lean)) + sway;
       node.root.updateMatrixWorld(true);
       // Under the bike, not the leaning rider: follows the road's pitch and heading only.
       this.shadows.setMatrixAt(
@@ -129,6 +144,11 @@ export class RiderPack {
     this.shadows.instanceMatrix.needsUpdate = true;
     this.thighs.instanceMatrix.needsUpdate = true;
     this.shins.instanceMatrix.needsUpdate = true;
+  }
+
+  /** The leaning rider's world matrix as of the last update, in the rider model's local frame. */
+  anchor(index: number): THREE.Matrix4 | null {
+    return this.nodes[index]?.lean.matrixWorld ?? null;
   }
 
   dispose() {

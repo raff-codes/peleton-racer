@@ -6,6 +6,7 @@ import { useBike } from '../bike/store';
 import { beginSession, ghostsFor, playerForActiveProfile, saveFinishedRide } from '../data/session';
 import { Confetti, FinishLine } from './FinishLine';
 import { useHud } from './hudStore';
+import { MoodEffects } from './MoodEffects';
 import type { GameMap } from './maps';
 import { RiderPack } from './RiderPack';
 import { createRace, PLAYER_ID, type Race, type Rider, type RideSetup, standings, stepRace } from './race';
@@ -121,6 +122,7 @@ const World = ({ map, setup }: { map: GameMap; setup: RideSetup }) => {
     [map, setup]
   );
   const pack = React.useMemo(() => new RiderPack(race.riders), [race]);
+  const moods = React.useMemo(() => new MoodEffects(race.riders.length), [race]);
   const confetti = React.useMemo(() => new Confetti(), []);
   const lookTarget = React.useRef(new THREE.Vector3());
   /** Real (unscaled) seconds since the player crossed the line. */
@@ -132,9 +134,10 @@ const World = ({ map, setup }: { map: GameMap; setup: RideSetup }) => {
   React.useEffect(
     () => () => {
       pack.dispose();
+      moods.dispose();
       confetti.dispose();
     },
-    [pack, confetti]
+    [pack, moods, confetti]
   );
 
   useFrame(({ camera }, rawDt) => {
@@ -158,6 +161,7 @@ const World = ({ map, setup }: { map: GameMap; setup: RideSetup }) => {
     pack.update(race, dt, (rider) =>
       rider.id === PLAYER_ID ? sample.cadence : rider.speed > 0.3 ? BOT_CADENCE_RPM : 0
     );
+    moods.update(race, pack, dt, camera);
     confetti.update(dt);
 
     // Lerp towards the goal to hide corner snapping and blend between camera modes.
@@ -191,6 +195,7 @@ const World = ({ map, setup }: { map: GameMap; setup: RideSetup }) => {
     <>
       <FinishLine roadWidth={ROAD_WIDTH} track={map.track} />
       <primitive object={pack.root} />
+      <primitive object={moods.root} />
       <primitive object={confetti.points} />
     </>
   );

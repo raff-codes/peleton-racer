@@ -1,4 +1,5 @@
 import type { RideTrace } from '../data/types';
+import { type Mood, stepMood } from './mood';
 import { RIDER, stepSpeed } from './physics';
 import { poseAt, type Track } from './track';
 
@@ -24,6 +25,9 @@ export type Rider = {
   draft: number;
   /** Seconds spent boxed in behind a slower wheel while having the legs to go faster */
   heldBack: number;
+  /** Cosmetic: sleepy or on fire from the player's effort; bots and ghosts stay normal */
+  mood: Mood;
+  moodPending: number;
   finishedAt: number | null;
 };
 
@@ -130,6 +134,8 @@ const makeRider = (
   distance: 0,
   draft: 0,
   heldBack: 0,
+  mood: 'normal',
+  moodPending: 0,
   finishedAt: null
 });
 
@@ -328,6 +334,7 @@ export const stepRace = (race: Race, rawPlayerPower: number, dt: number) => {
     }
 
     const isPlayer = rider.botPower === null;
+    if (isPlayer) stepMood(rider, power, rider.massKg, dt, rider.finishedAt === null);
     if (isPlayer && rider.finishedAt === null) recordTrace(race, rider.distance);
 
     if (rider.finishedAt === null && rider.distance >= raceDistance) {
