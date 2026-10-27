@@ -5,13 +5,19 @@
  * numbers still match the map's tagline.
  */
 import { lapStats, MAPS } from '../src/game/maps';
-import { curvatureAt, type Track, type TrackPoint } from '../src/game/track';
+import { curvatureAt, poseAt, surfaceY, type Track, type TrackPoint } from '../src/game/track';
+import { createHeightField } from '../src/game/world/heightField';
+import { HIGH, LOW, type QualitySettings } from '../src/game/world/quality';
+import { createRoadQuery } from '../src/game/world/roadQuery';
+import { ROAD_WIDTH } from '../src/game/world/types';
 
 /** A rise or fall must reverse by this much before it counts as over, m: ignores ripples. */
 const REVERSAL_M = 1.5;
 /** Climbs smaller than this aren't worth listing, m. */
 const MIN_GAIN_M = 3;
 const CURVATURE_STEP_M = 2;
+/** Terrain within this of the road surface doesn't count as covering it (the paint sits 0.02 m up), m. */
+const COVER_TOLERANCE_M = 0.02;
 
 type Stretch = { from: number; to: number; gain: number; length: number; maxGrade: number };
 
@@ -73,6 +79,55 @@ const footprint = ({ track, theme }: (typeof MAPS)[number]) => {
   return { min: Math.min(...radii), max: Math.max(...radii), lake };
 };
 
+/**
+ * How far the terrain mesh rises above the road, m (negative = clear), and the share of the road
+ * it covers. The mesh is a grid of straight-edged triangles between `heightAt` samples (as
+ * terrain.ts builds it), so it can bridge over the road where the exact ground never does.
+ */
+const meshOverRoad = ({ track, theme }: (typeof MAPS)[number], quality: QualitySettings) => {
+  const ground = createHeightField(track, theme, createRoadQuery(track));
+  const n = quality.terrainCells;
+  const step = (ground.extent * 2) / n;
+  const stride = n + 1;
+  const heights = new Float32Array(stride * stride);
+  for (let j = 0; j <= n; j++) {
+    for (let i = 0; i <= n; i++)
+      heights[j * stride + i] = ground.heightAt(-ground.extent + i * step, -ground.extent + j * step);
+  }
+  const h = (i: number, j: number) => heights[j * stride + i] as number;
+  // The triangle containing (x, z), with the grid's alternating diagonals.
+  const mesh = (x: number, z: number) => {
+    const fx = (x + ground.extent) / step;
+    const fz = (z + ground.extent) / step;
+    const i = Math.floor(fx);
+    const j = Math.floor(fz);
+    const u = fx - i;
+    const v = fz - j;
+    if ((i + j) % 2 === 0) {
+      return u >= v
+        ? h(i, j) + u * (h(i + 1, j) - h(i, j)) + v * (h(i + 1, j + 1) - h(i + 1, j))
+        : h(i, j) + v * (h(i, j + 1) - h(i, j)) + u * (h(i + 1, j + 1) - h(i, j + 1));
+    }
+    return u + v <= 1
+      ? h(i, j) + u * (h(i + 1, j) - h(i, j)) + v * (h(i, j + 1) - h(i, j))
+      : h(i + 1, j + 1) + (1 - u) * (h(i, j + 1) - h(i + 1, j + 1)) + (1 - v) * (h(i + 1, j) - h(i + 1, j + 1));
+  };
+  const half = ROAD_WIDTH / 2;
+  let worst = Number.NEGATIVE_INFINITY;
+  let covered = 0;
+  let samples = 0;
+  for (let d = 0; d < track.length; d += 1) {
+    const p = poseAt(track, d);
+    for (let lateral = -half; lateral <= half; lateral += 0.5) {
+      const over = mesh(p.x - p.dirZ * lateral, p.z + p.dirX * lateral) - surfaceY(p, lateral, half);
+      worst = Math.max(worst, over);
+      samples++;
+      if (over > COVER_TOLERANCE_M) covered++;
+    }
+  }
+  return { worst, covered: covered / samples };
+};
+
 const pct = (g: number) => `${(g * 100).toFixed(1)}%`;
 const m = (v: number) => `${v.toFixed(0)} m`;
 
@@ -89,6 +144,16 @@ for (const map of MAPS) {
     `  ${m(reach.min)}–${m(reach.max)} from the origin (scenery expects 210–450 m)` +
       (reach.lake !== null ? ` · lake ${reach.lake.toFixed(2)} radii away (shore bank reaches 2)` : '')
   );
+  const mesh = (
+    [
+      ['High', HIGH],
+      ['Low', LOW]
+    ] as const
+  ).map(([label, quality]) => {
+    const { worst, covered } = meshOverRoad(map, quality);
+    return covered > 0 ? `${label} covers ${pct(covered)} of the road (up to ${worst.toFixed(2)} m)` : `${label} clear`;
+  });
+  console.log(`  terrain mesh over the road: ${mesh.join(' · ')}`);
   for (const s of stretches(track)) {
     const kind = s.gain > 0 ? 'climb  ' : 'descent';
     console.log(

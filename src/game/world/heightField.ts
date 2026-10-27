@@ -18,17 +18,15 @@ export type HeightField = {
 };
 
 /** Terrain sits this far below the road surface so the ground never pokes through the road. */
-const ROAD_SINK_M = 0.35;
+const ROAD_SINK_M = 0.45;
 /** Flat shoulder either side of the road before the ground starts blending back to natural. */
 const SHOULDER_M = 1.5;
 /**
- * Distance from the shoulder over which the ground blends from road height to natural, m. Ground
- * above the road is cut back steeply (a rocky cutting); ground below falls away on a gentle bank.
+ * Distance from the shoulder over which the ground blends from road height to natural, m. The
+ * terrain mesh draws straight lines between vertices 10 m apart (17 m on Low), so a rise much
+ * steeper than this beside the road gets bridged over the tarmac by the triangles.
  */
-const CUT_BLEND_M = 12;
-const FILL_BLEND_M = 30;
-/** Height difference (m) over which the blend eases from cut to fill, so the ground has no seam where they meet. */
-const CUT_FILL_EASE_M = 3;
+const BLEND_M = 30;
 
 /**
  * The land around the road follows its height, so a climb runs up a hillside rather than through
@@ -121,7 +119,7 @@ export const createHeightField = (track: Track, theme: Theme, road: RoadQuery): 
   const edge = ROAD_WIDTH / 2 + SHOULDER_M;
   const heightAt = (x: number, z: number) => {
     const h = natural(x, z);
-    const passes = road.passes(x, z, edge + FILL_BLEND_M);
+    const passes = road.passes(x, z, edge + BLEND_M);
     if (passes.length === 0) return h;
     // Each nearby pass pulls the ground to its height; where two passes overlap (between a
     // switchback's legs) the ground eases between them instead of stepping at the midline. The
@@ -131,8 +129,7 @@ export const createHeightField = (track: Track, theme: Theme, road: RoadQuery): 
     let heights = 0;
     for (const pass of passes) {
       const roadY = pass.y - ROAD_SINK_M;
-      const blend = lerp(CUT_BLEND_M, FILL_BLEND_M, smoothstep(-CUT_FILL_EASE_M, CUT_FILL_EASE_M, roadY - h));
-      const w = 1 - smoothstep(edge, edge + blend, pass.distance);
+      const w = 1 - smoothstep(edge, edge + BLEND_M, pass.distance);
       if (w <= 0) continue;
       const weight = w / (Math.max(0, pass.distance - edge) + 1) ** 2;
       weights += weight;

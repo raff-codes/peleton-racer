@@ -6,8 +6,8 @@ import { THEMES, type Theme } from './world/theme';
  * Map ids name a course, not a look: saved rides, bests and ghosts are keyed by them. Changing a
  * map's track means a new id (and retiring the old map below), never editing a track in place.
  */
-export type MapId = 'alpine-2' | 'winter-2' | 'autumn-2' | 'golden-2' | RetiredMapId;
-type RetiredMapId = 'alpine' | 'winter' | 'autumn' | 'golden';
+export type MapId = 'alpine-2' | 'winter-3' | 'autumn-2' | 'golden-2' | RetiredMapId;
+type RetiredMapId = 'alpine' | 'winter' | 'autumn' | 'golden' | 'winter-2';
 
 export type GameMap = {
   id: MapId;
@@ -98,52 +98,57 @@ export const MAPS: GameMap[] = [
     [{ kind: 'chapel', at: 540, lateral: -30, yaw: -Math.PI / 2 }]
   ),
   map(
-    'winter-2',
+    'winter-3',
     'Winter Pass',
     'Four hairpins up the pass, then a long, fast descent',
     buildCircuit({
       name: 'Winter Pass',
+      // Two pairs of hairpins, each pair's legs 60 m apart: closer than that and the terrain grid
+      // (17 m cells on Low) can't fit the bank between them, so the slope spans over the road.
       path: [
         polar(0, 300, 0),
-        polar(20, 296, 0),
-        polar(40, 290, 1),
-        polar(55, 286, 3),
-        // Five legs up the hillside, each further out and higher, joined by four hairpins.
-        polar(65, 285, 4),
-        polar(80, 285, 8.5),
-        polar(95, 285, 13),
-        ...hairpin(95, 285, 320, 13, 15, 1),
-        polar(95, 320, 15),
-        polar(80, 320, 19.5),
-        polar(65, 320, 24),
-        ...hairpin(65, 320, 355, 24, 26, -1),
-        polar(65, 355, 26),
-        polar(80, 355, 30.5),
-        polar(95, 355, 35),
-        ...hairpin(95, 355, 390, 35, 37, 1),
-        polar(95, 390, 37),
-        polar(80, 390, 41.5),
-        polar(65, 390, 46),
-        ...hairpin(65, 390, 425, 46, 48, -1),
-        polar(65, 425, 48),
-        polar(80, 428, 51),
-        // Over the top of the pass and down the long way round.
-        polar(95, 430, 53),
-        polar(110, 428, 54),
-        polar(125, 418, 53),
-        polar(150, 385, 45),
-        polar(175, 345, 36),
-        polar(200, 315, 27),
-        polar(230, 295, 17),
-        polar(260, 288, 9),
-        polar(290, 290, 4),
-        polar(320, 298, 1),
-        polar(340, 300, 0)
+        polar(20, 292, 0),
+        polar(38, 280, 2),
+        // First pair, climbing outwards towards the mountains. The hairpins themselves are flat
+        // (as real ones are), which also keeps the ground inside them level enough for the grid.
+        polar(50, 270, 3),
+        polar(65, 270, 7),
+        polar(80, 270, 11),
+        ...hairpin(80, 270, 330, 11, 11, 1),
+        polar(80, 330, 11),
+        polar(65, 330, 15.5),
+        polar(50, 330, 20),
+        ...hairpin(50, 330, 390, 20, 20, -1),
+        polar(50, 390, 20),
+        polar(65, 390, 25),
+        polar(85, 395, 31),
+        // Along under the peaks: the gallery is here.
+        polar(105, 402, 35),
+        polar(125, 408, 39),
+        polar(145, 410, 42.5),
+        polar(160, 410, 45),
+        // Second pair, climbing back in towards the lake.
+        ...hairpin(160, 410, 350, 45, 45, 1),
+        polar(160, 350, 45),
+        polar(145, 350, 50),
+        polar(130, 350, 55),
+        ...hairpin(130, 350, 290, 55, 55, -1),
+        polar(130, 290, 55),
+        polar(145, 290, 58.5),
+        // Over the top and the long way down.
+        polar(165, 290, 61),
+        polar(185, 292, 60),
+        polar(210, 296, 53),
+        polar(240, 300, 42),
+        polar(270, 302, 30),
+        polar(300, 302, 17),
+        polar(325, 302, 7),
+        polar(345, 301, 1)
       ]
     }),
     THEMES.winter,
-    // Over the road on the summit leg, after the last hairpin.
-    [{ kind: 'snowGallery', at: 1400, lateral: 0 }]
+    // Over the road along under the peaks, between the two pairs of hairpins.
+    [{ kind: 'snowGallery', at: 1150, lateral: 0 }]
   ),
   map(
     'autumn-2',
@@ -217,6 +222,52 @@ export const MAPS: GameMap[] = [
 
 /** Courses that have been redrawn. Kept so saved rides on them still resolve, but not offered on the menu. */
 const RETIRED_MAPS: GameMap[] = [
+  map(
+    'winter-2',
+    'Winter Pass (stacked hairpins)',
+    'Four hairpins up the pass, then a long, fast descent',
+    buildCircuit({
+      name: 'Winter Pass',
+      path: [
+        polar(0, 300, 0),
+        polar(20, 296, 0),
+        polar(40, 290, 1),
+        polar(55, 286, 3),
+        // Five legs up the hillside, each further out and higher, joined by four hairpins.
+        polar(65, 285, 4),
+        polar(80, 285, 8.5),
+        polar(95, 285, 13),
+        ...hairpin(95, 285, 320, 13, 15, 1),
+        polar(95, 320, 15),
+        polar(80, 320, 19.5),
+        polar(65, 320, 24),
+        ...hairpin(65, 320, 355, 24, 26, -1),
+        polar(65, 355, 26),
+        polar(80, 355, 30.5),
+        polar(95, 355, 35),
+        ...hairpin(95, 355, 390, 35, 37, 1),
+        polar(95, 390, 37),
+        polar(80, 390, 41.5),
+        polar(65, 390, 46),
+        ...hairpin(65, 390, 425, 46, 48, -1),
+        polar(65, 425, 48),
+        polar(80, 428, 51),
+        // Over the top of the pass and down the long way round.
+        polar(95, 430, 53),
+        polar(110, 428, 54),
+        polar(125, 418, 53),
+        polar(150, 385, 45),
+        polar(175, 345, 36),
+        polar(200, 315, 27),
+        polar(230, 295, 17),
+        polar(260, 288, 9),
+        polar(290, 290, 4),
+        polar(320, 298, 1),
+        polar(340, 300, 0)
+      ]
+    }),
+    THEMES.winter
+  ),
   map('alpine', 'Alpine Valley (original course)', 'Two punchy climbs under the peaks', HILL_LOOP, THEMES.alpine),
   map(
     'winter',
