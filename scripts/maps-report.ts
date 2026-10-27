@@ -1,7 +1,8 @@
 /**
  * Prints each map's circuit as a rider feels it: lap length, climbs and descents, steepest
- * grade, tightest bend and the grade at the finish line. Run with `pnpm maps:report` after
- * touching a track, and check the numbers still match the map's tagline.
+ * grade, tightest bend and the grade at the finish line, plus how the road sits against the
+ * scenery's assumptions. Run with `pnpm maps:report` after touching a track, and check the
+ * numbers still match the map's tagline.
  */
 import { lapStats, MAPS } from '../src/game/maps';
 import { curvatureAt, type Track, type TrackPoint } from '../src/game/track';
@@ -62,6 +63,16 @@ const tightestBend = (track: Track) => {
   return max > 0 ? 1 / max : Number.POSITIVE_INFINITY;
 };
 
+/** The road's reach from the origin, and its closest approach to the lake in lake radii. */
+const footprint = ({ track, theme }: (typeof MAPS)[number]) => {
+  const radii = track.points.map((p) => Math.hypot(p.x, p.z));
+  const { water } = theme;
+  const lake = water
+    ? Math.min(...track.points.map((p) => Math.hypot(p.x - water.x, p.z - water.z))) / water.radius
+    : null;
+  return { min: Math.min(...radii), max: Math.max(...radii), lake };
+};
+
 const pct = (g: number) => `${(g * 100).toFixed(1)}%`;
 const m = (v: number) => `${v.toFixed(0)} m`;
 
@@ -72,6 +83,11 @@ for (const map of MAPS) {
   console.log(
     `  lap ${stats.lapKm.toFixed(2)} km · climb ${m(stats.climbM)} · max ${pct(stats.maxGradePct / 100)}` +
       ` · tightest bend r ${m(tightestBend(track))} · at the line ${pct((track.points[0] as TrackPoint).grade)}`
+  );
+  const reach = footprint(map);
+  console.log(
+    `  ${m(reach.min)}–${m(reach.max)} from the origin (scenery expects 210–450 m)` +
+      (reach.lake !== null ? ` · lake ${reach.lake.toFixed(2)} radii away (shore bank reaches 2)` : '')
   );
   for (const s of stretches(track)) {
     const kind = s.gain > 0 ? 'climb  ' : 'descent';

@@ -1,7 +1,12 @@
-import { buildLoop, HILL_LOOP, lapClimb, type Track } from './track';
+import { buildCircuit, buildLoop, HILL_LOOP, lapClimb, type Track } from './track';
 import { THEMES, type Theme } from './world/theme';
 
-export type MapId = 'alpine' | 'winter' | 'autumn' | 'golden';
+/**
+ * Map ids name a course, not a look: saved rides, bests and ghosts are keyed by them. Changing a
+ * map's track means a new id (and retiring the old map below), never editing a track in place.
+ */
+export type MapId = 'alpine-2' | 'winter-2' | 'autumn-2' | 'golden-2' | RetiredMapId;
+type RetiredMapId = 'alpine' | 'winter' | 'autumn' | 'golden';
 
 export type GameMap = {
   id: MapId;
@@ -19,12 +24,184 @@ const map = (id: MapId, name: string, tagline: string, track: Track, theme: Them
   theme
 });
 
+/** A control point `deg` round from +x and `r` m out, at height `y` m. */
+const polar = (deg: number, r: number, y: number): [number, number, number] => {
+  const a = (deg * Math.PI) / 180;
+  return [r * Math.cos(a), r * Math.sin(a), y];
+};
+
+/**
+ * The inside of a hairpin joining a leg ending at (deg, rIn) to the next leg starting at
+ * (deg, rOut): a half circle of radius |rOut − rIn| / 2 bulging round the loop (`side` 1) or
+ * back (`side` −1). The legs' own end points aren't included.
+ */
+const hairpin = (deg: number, rIn: number, rOut: number, yIn: number, yOut: number, side: 1 | -1) => {
+  const a = (deg * Math.PI) / 180;
+  const radius = (rOut - rIn) / 2;
+  const mid = (rIn + rOut) / 2;
+  return [0.25, 0.5, 0.75].map((f): [number, number, number] => {
+    const phi = f * Math.PI;
+    const out = mid - radius * Math.cos(phi);
+    const along = Math.abs(radius) * Math.sin(phi) * side;
+    return [out * Math.cos(a) - along * Math.sin(a), out * Math.sin(a) + along * Math.cos(a), yIn + (yOut - yIn) * f];
+  });
+};
+
 /** Every map pairs a circuit shape with a look. Circuits differ in character, not just scenery. */
 export const MAPS: GameMap[] = [
-  map('alpine', 'Alpine Valley', 'Two punchy climbs under the peaks', HILL_LOOP, THEMES.alpine),
+  map(
+    'alpine-2',
+    'Alpine Valley',
+    'A lakeside sprint and two punchy climbs towards the peaks',
+    buildCircuit({
+      name: 'Alpine Valley',
+      path: [
+        // The line, on the flat valley floor beside the lake.
+        polar(0, 250, 0),
+        polar(18, 246, 0),
+        polar(36, 258, 0),
+        // First climb, out towards the foothills.
+        polar(54, 296, 3),
+        polar(68, 344, 8),
+        polar(82, 386, 13),
+        polar(100, 400, 17),
+        polar(118, 362, 11),
+        polar(136, 304, 6),
+        polar(156, 266, 3),
+        polar(178, 254, 2),
+        polar(200, 272, 2),
+        // Second climb: shorter and steeper.
+        polar(218, 322, 6),
+        polar(231, 372, 13),
+        polar(245, 414, 20),
+        polar(262, 410, 23),
+        // Down off it and onto the flat for the sprint.
+        polar(280, 362, 15),
+        polar(300, 310, 8),
+        polar(320, 274, 3),
+        polar(340, 254, 0)
+      ]
+    }),
+    THEMES.alpine
+  ),
+  map(
+    'winter-2',
+    'Winter Pass',
+    'Four hairpins up the pass, then a long, fast descent',
+    buildCircuit({
+      name: 'Winter Pass',
+      path: [
+        polar(0, 300, 0),
+        polar(20, 296, 0),
+        polar(40, 290, 1),
+        polar(55, 286, 3),
+        // Five legs up the hillside, each further out and higher, joined by four hairpins.
+        polar(65, 285, 4),
+        polar(80, 285, 8.5),
+        polar(95, 285, 13),
+        ...hairpin(95, 285, 320, 13, 15, 1),
+        polar(95, 320, 15),
+        polar(80, 320, 19.5),
+        polar(65, 320, 24),
+        ...hairpin(65, 320, 355, 24, 26, -1),
+        polar(65, 355, 26),
+        polar(80, 355, 30.5),
+        polar(95, 355, 35),
+        ...hairpin(95, 355, 390, 35, 37, 1),
+        polar(95, 390, 37),
+        polar(80, 390, 41.5),
+        polar(65, 390, 46),
+        ...hairpin(65, 390, 425, 46, 48, -1),
+        polar(65, 425, 48),
+        polar(80, 428, 51),
+        // Over the top of the pass and down the long way round.
+        polar(95, 430, 53),
+        polar(110, 428, 54),
+        polar(125, 418, 53),
+        polar(150, 385, 45),
+        polar(175, 345, 36),
+        polar(200, 315, 27),
+        polar(230, 295, 17),
+        polar(260, 288, 9),
+        polar(290, 290, 4),
+        polar(320, 298, 1),
+        polar(340, 300, 0)
+      ]
+    }),
+    THEMES.winter
+  ),
+  map(
+    'autumn-2',
+    'Autumn Forest',
+    'Twisting lanes, short steep kickers and an uphill finish',
+    buildCircuit({
+      name: 'Autumn Forest',
+      // Radius swings every 15° for the esses. Each kicker rises 5 m in one 15° step; the last
+      // one climbs to the line.
+      path: (
+        [
+          [264, 9],
+          [229, 10],
+          [257, 8],
+          [306, 5],
+          [278, 4],
+          [236, 9],
+          [215, 9],
+          [250, 6],
+          [306, 3],
+          [348, 2],
+          [320, 7],
+          [278, 8],
+          [306, 5],
+          [355, 3],
+          [334, 3],
+          [285, 8],
+          [250, 9],
+          [222, 6],
+          [243, 4],
+          [292, 2],
+          [334, 2],
+          [306, 3],
+          [271, 4],
+          [257, 4]
+        ] as const
+      ).map(([r, y], i) => polar(i * 15, r, y))
+    }),
+    THEMES.autumn
+  ),
+  map(
+    'golden-2',
+    'Golden Hour Lakes',
+    'Fast and flat, with a long lakeside straight for the sprint',
+    buildCircuit({
+      name: 'Golden Hour Lakes',
+      path: [
+        // The line, at the end of the lakeside straight.
+        [140, -235, 0],
+        [300, -215, 0],
+        [390, -80, 1],
+        [410, 80, 3],
+        [350, 250, 5],
+        [200, 360, 6],
+        [0, 400, 5],
+        [-200, 360, 4],
+        [-340, 250, 3],
+        [-400, 80, 2],
+        [-380, -100, 1],
+        [-300, -220, 0],
+        [-120, -238, 0]
+      ]
+    }),
+    THEMES.golden
+  )
+];
+
+/** Courses that have been redrawn. Kept so saved rides on them still resolve, but not offered on the menu. */
+const RETIRED_MAPS: GameMap[] = [
+  map('alpine', 'Alpine Valley (original course)', 'Two punchy climbs under the peaks', HILL_LOOP, THEMES.alpine),
   map(
     'winter',
-    'Winter Pass',
+    'Winter Pass (original course)',
     'One long drag up the pass, then a fast descent',
     buildLoop({
       name: 'Winter Pass',
@@ -42,7 +219,7 @@ export const MAPS: GameMap[] = [
   ),
   map(
     'autumn',
-    'Autumn Forest',
+    'Autumn Forest (original course)',
     'Twisting lanes and short, steep kickers',
     buildLoop({
       name: 'Autumn Forest',
@@ -60,7 +237,7 @@ export const MAPS: GameMap[] = [
   ),
   map(
     'golden',
-    'Golden Hour Lakes',
+    'Golden Hour Lakes (original course)',
     'A fast lakeside loop in the evening sun',
     buildLoop({
       name: 'Golden Hour Lakes',
@@ -78,7 +255,8 @@ export const MAPS: GameMap[] = [
   )
 ];
 
-export const mapById = (id: MapId) => MAPS.find((m) => m.id === id) ?? (MAPS[0] as GameMap);
+export const mapById = (id: MapId) =>
+  MAPS.find((m) => m.id === id) ?? RETIRED_MAPS.find((m) => m.id === id) ?? (MAPS[0] as GameMap);
 
 /** Headline numbers for one lap of a map. */
 export const lapStats = (m: GameMap) => ({
