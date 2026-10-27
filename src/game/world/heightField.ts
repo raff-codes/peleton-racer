@@ -52,6 +52,8 @@ const createRelief = (track: Track, extent: number, baseY: number): Relief => {
   const distance = new Float32Array(cells * cells);
   const points = track.points.filter((_, i) => i % RELIEF_POINT_STRIDE === 0);
   const inv2Sigma2 = 1 / (2 * RELIEF_SIGMA_M * RELIEF_SIGMA_M);
+  // Beyond 3σ a point's weight is under 1%: skip the exp.
+  const reach2 = (3 * RELIEF_SIGMA_M) ** 2;
 
   for (let j = 0; j < cells; j++) {
     for (let i = 0; i < cells; i++) {
@@ -60,17 +62,23 @@ const createRelief = (track: Track, extent: number, baseY: number): Relief => {
       let weights = 0;
       let heights = 0;
       let nearest2 = Number.POSITIVE_INFINITY;
+      let nearestY = 0;
       for (const p of points as TrackPoint[]) {
         const d2 = (p.x - x) ** 2 + (p.z - z) ** 2;
-        if (d2 < nearest2) nearest2 = d2;
+        if (d2 < nearest2) {
+          nearest2 = d2;
+          nearestY = p.y - baseY;
+        }
+        if (d2 > reach2) continue;
         const w = Math.exp(-d2 * inv2Sigma2);
         weights += w;
         heights += w * (p.y - baseY);
       }
       const nearest = Math.sqrt(nearest2);
       distance[j * cells + i] = nearest;
-      lift[j * cells + i] =
-        weights > 1e-6 ? (heights / weights) * (1 - smoothstep(RELIEF_FADE.start, RELIEF_FADE.end, nearest)) : 0;
+      // With every point past the cutoff, the nearest one stands in so the lift has no seam there.
+      const average = weights > 1e-6 ? heights / weights : nearestY;
+      lift[j * cells + i] = average * (1 - smoothstep(RELIEF_FADE.start, RELIEF_FADE.end, nearest));
     }
   }
 
@@ -113,7 +121,7 @@ export const createHeightField = (track: Track, theme: Theme, road: RoadQuery): 
   const edge = ROAD_WIDTH / 2 + SHOULDER_M;
   const heightAt = (x: number, z: number) => {
     const h = natural(x, z);
-    const passes = road.passes(x, z);
+    const passes = road.passes(x, z, edge + FILL_BLEND_M);
     if (passes.length === 0) return h;
     // Each nearby pass pulls the ground to its height; where two passes overlap (between a
     // switchback's legs) the ground eases between them instead of stepping at the midline. The

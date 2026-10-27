@@ -17,10 +17,11 @@ export type RoadQuery = {
   /** Nearest point on the road centre line, or null if nothing within `maxDistance`. */
   nearest: (x: number, z: number) => RoadHit | null;
   /**
-   * The nearest point of every separate pass of the road nearby (a switchback's legs, say),
-   * nearest first. Fills and returns a shared array: copy anything kept past the next call.
+   * The nearest point of every separate pass of the road within `within` m (default and at most
+   * `maxDistance`), e.g. each of a switchback's legs, nearest first. Fills and returns a shared
+   * array: copy anything kept past the next call.
    */
-  passes: (x: number, z: number) => readonly RoadHit[];
+  passes: (x: number, z: number, within?: number) => readonly RoadHit[];
   /** Searches at least this far; beyond it `nearest` may return null. */
   maxDistance: number;
 };
@@ -111,14 +112,20 @@ export const createRoadQuery = (track: Track): RoadQuery => {
     return best;
   };
 
-  // Scratch for `passes`: every segment's closest point, then one winner per pass.
-  const candidates: { distance: number; y: number; along: number; dirX: number; dirZ: number }[] = [];
+  // Scratch for `passes`: every nearby segment's closest point, then one winner per pass.
+  type Candidate = RoadHit & { taken: boolean };
+  const candidates: Candidate[] = [];
   const found: RoadHit[] = [];
-  const passes = (x: number, z: number): readonly RoadHit[] => {
+  const lapGap = (p: number, q: number) => {
+    const gap = Math.abs(p - q) % track.length;
+    return Math.min(gap, track.length - gap);
+  };
+  const passes = (x: number, z: number, within = CELL_M): readonly RoadHit[] => {
     found.length = 0;
     let count = 0;
     const cx = Math.floor(x / CELL_M);
     const cz = Math.floor(z / CELL_M);
+    const within2 = within * within;
     for (let dx = -1; dx <= 1; dx++) {
       for (let dz = -1; dz <= 1; dz++) {
         const list = cells.get(key(cx + dx, cz + dz));
@@ -130,29 +137,37 @@ export const createRoadQuery = (track: Track): RoadQuery => {
           const sz = b.z - a.z;
           const len2 = sx * sx + sz * sz || 1;
           const t = Math.max(0, Math.min(1, ((x - a.x) * sx + (z - a.z) * sz) / len2));
-          const segLength = i + 1 === n ? track.length - a.distance : b.distance - a.distance;
-          const len = Math.sqrt(len2);
           const px = a.x + sx * t;
           const pz = a.z + sz * t;
-          const c = candidates[count] ?? { distance: 0, y: 0, along: 0, dirX: 0, dirZ: 0 };
+          const d2 = (x - px) ** 2 + (z - pz) ** 2;
+          if (d2 > within2) continue;
+          const segLength = i + 1 === n ? track.length - a.distance : b.distance - a.distance;
+          const len = Math.sqrt(len2);
+          const c = candidates[count] ?? { distance: 0, y: 0, along: 0, dirX: 0, dirZ: 0, taken: false };
           candidates[count++] = c;
-          c.distance = Math.hypot(x - px, z - pz);
+          c.distance = Math.sqrt(d2);
           c.y = bankedY(a, b, t, px, pz, x, z, sx, sz, len);
           c.along = a.distance + segLength * t;
           c.dirX = sx / len;
           c.dirZ = sz / len;
+          c.taken = false;
         }
       }
     }
-    // Nearest first; a candidate is a new pass if it's far along the road from every pass kept.
-    // (A segment can sit in several cells, so the same point can appear more than once.)
-    const sorted = candidates.slice(0, count).sort((p, q) => p.distance - q.distance);
-    for (const c of sorted) {
-      const separate = found.every((f) => {
-        const gap = Math.abs(f.along - c.along) % track.length;
-        return Math.min(gap, track.length - gap) > PASS_SEPARATION_M;
-      });
-      if (separate) found.push(c);
+    // Repeatedly take the nearest candidate left as a pass, and drop every candidate on the same
+    // stretch of road. (A segment can sit in several cells, so the same point can appear twice.)
+    for (;;) {
+      let best: Candidate | null = null;
+      for (let k = 0; k < count; k++) {
+        const c = candidates[k] as Candidate;
+        if (!c.taken && (!best || c.distance < best.distance)) best = c;
+      }
+      if (!best) break;
+      found.push(best);
+      for (let k = 0; k < count; k++) {
+        const c = candidates[k] as Candidate;
+        if (lapGap(c.along, best.along) <= PASS_SEPARATION_M) c.taken = true;
+      }
     }
     return found;
   };
