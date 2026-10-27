@@ -26,7 +26,7 @@ export type Rider = {
   draft: number;
   /** Seconds spent boxed in behind a slower wheel while having the legs to go faster */
   heldBack: number;
-  /** Cosmetic: sleepy or on fire from the player's effort; bots and ghosts stay normal */
+  /** Cosmetic: sleepy to inferno from the player's effort; bots and ghosts stay normal */
   mood: Mood;
   moodPending: number;
   finishedAt: number | null;

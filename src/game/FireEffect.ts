@@ -4,8 +4,9 @@ import type { RiderPack } from './RiderPack';
 import type { Race } from './race';
 
 /**
- * On fire: flame tongues off the wheels, back and helmet, sparks, and a heat glow round the rider.
- * The fire builds up and dies down over a moment (its "heat") rather than switching on and off.
+ * The hot moods: flame tongues off the wheels, back and helmet, sparks, and a heat glow round the
+ * rider. How much of each depends on the mood's heat: a warm rider smoulders, mostly at the wheels;
+ * an inferno is tall flames all over and a shower of sparks.
  *
  * Everything is one draw call: an instanced quad drawn by a shader that shapes each sprite (a
  * wavering teardrop for a flame, a streak for a spark, a soft disc for the glow), so there are no
@@ -18,7 +19,7 @@ import type { Race } from './race';
 
 const FLAME_COUNT = 120;
 const EMBER_COUNT = 40;
-/** Emission at full heat; scaled down with it. */
+/** Emission at full heat (inferno); scaled down with it. */
 const FLAME_RATE_PER_S = 110;
 const EMBER_RATE_PER_S = 30;
 const FLAME_LIFE_S = [0.4, 0.7] as const;
@@ -28,11 +29,11 @@ const FLAME_BUOYANCY = 2;
 /** Sparks float rather than fall, but slow their climb. */
 const EMBER_SINK = 1.2;
 const EMBER_SIZE_M = [0.035, 0.06] as const;
-/** Glow size from just lit to full heat. */
+/** Glow size from barely warm to full heat. */
 const GLOW_SIZE_M = [0.9, 1.7] as const;
 
-/** How hot each mood burns, 0–1. Eased per rider so the fire builds up and dies down. */
-const HEAT: Record<Mood, number> = { sleepy: 0, normal: 0, fire: 1 };
+/** How hot each mood burns, 0–1. Eased per rider so moving between levels doesn't pop. */
+const HEAT: Record<Mood, number> = { sleepy: 0, normal: 0, warm: 0.3, fire: 0.65, inferno: 1 };
 const HEAT_EASE_S = 0.4;
 /** Below this the rider has cooled off: no new sprites. */
 const MIN_HEAT = 0.03;
