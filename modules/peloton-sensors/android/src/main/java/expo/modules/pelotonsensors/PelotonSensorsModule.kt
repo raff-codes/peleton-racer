@@ -168,8 +168,10 @@ class PelotonSensorsModule : Module() {
     }
 
     try {
-      // Power is reported in centiwatts.
-      request(V1_CMD_POWER) { power = it / 100.0 }
+      request(V1_CMD_POWER) {
+        logRaw("power", it)
+        power = it / 100.0
+      }
       request(V1_CMD_RPM) { cadence = it.toDouble() }
       request(V1_CMD_RESISTANCE) { resistance = it.toDouble() }
     } catch (e: Exception) {
@@ -217,6 +219,16 @@ class PelotonSensorsModule : Module() {
         Thread.sleep(V2_POLL_MS)
       }
     }
+  }
+
+  private var lastRawLog = 0L
+
+  /** Raw readings once every couple of seconds, so units can be checked against the Peloton app. */
+  private fun logRaw(metric: String, value: Float) {
+    val now = System.currentTimeMillis()
+    if (now - lastRawLog < 2000) return
+    lastRawLog = now
+    Log.i(TAG, "raw $metric=$value cadence=$cadence resistance=$resistance")
   }
 
   private fun emitSample() {
