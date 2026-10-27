@@ -1,9 +1,10 @@
 import type { Track, TrackPoint } from '../track';
+import { ROAD_WIDTH } from './types';
 
 export type RoadHit = {
   /** Horizontal distance from the query point to the road centre line, m */
   distance: number;
-  /** Road surface height at the nearest point */
+  /** Road surface height at the nearest point, banked towards the query point's side (to the edge at most) */
   y: number;
   /** Distance along the track at the nearest point, m */
   along: number;
@@ -25,6 +26,25 @@ export type RoadQuery = {
 };
 
 const CELL_M = 40;
+const HALF_WIDTH = ROAD_WIDTH / 2;
+
+/** Banked surface height at parameter t of segment a→b, for a point (x, z) beside it. */
+const bankedY = (
+  a: TrackPoint,
+  b: TrackPoint,
+  t: number,
+  px: number,
+  pz: number,
+  x: number,
+  z: number,
+  sx: number,
+  sz: number,
+  len: number
+) => {
+  // Signed lateral offset: positive on the right, along (−dirZ, dirX).
+  const lateral = Math.max(-HALF_WIDTH, Math.min(HALF_WIDTH, ((x - px) * -sz + (z - pz) * sx) / len));
+  return a.y + (b.y - a.y) * t + (a.bank + (b.bank - a.bank) * t) * lateral;
+};
 /** Closest points further apart than this along the road belong to different passes, m (> a hairpin's half circle). */
 const PASS_SEPARATION_M = 60;
 
@@ -79,7 +99,7 @@ export const createRoadQuery = (track: Track): RoadQuery => {
             const segLength = i + 1 === n ? track.length - a.distance : b.distance - a.distance;
             best = {
               distance,
-              y: a.y + (b.y - a.y) * t,
+              y: bankedY(a, b, t, px, pz, x, z, sx, sz, len),
               along: a.distance + segLength * t,
               dirX: sx / len,
               dirZ: sz / len
@@ -112,10 +132,12 @@ export const createRoadQuery = (track: Track): RoadQuery => {
           const t = Math.max(0, Math.min(1, ((x - a.x) * sx + (z - a.z) * sz) / len2));
           const segLength = i + 1 === n ? track.length - a.distance : b.distance - a.distance;
           const len = Math.sqrt(len2);
+          const px = a.x + sx * t;
+          const pz = a.z + sz * t;
           const c = candidates[count] ?? { distance: 0, y: 0, along: 0, dirX: 0, dirZ: 0 };
           candidates[count++] = c;
-          c.distance = Math.hypot(x - (a.x + sx * t), z - (a.z + sz * t));
-          c.y = a.y + (b.y - a.y) * t;
+          c.distance = Math.hypot(x - px, z - pz);
+          c.y = bankedY(a, b, t, px, pz, x, z, sx, sz, len);
           c.along = a.distance + segLength * t;
           c.dirX = sx / len;
           c.dirZ = sz / len;

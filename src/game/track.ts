@@ -6,6 +6,8 @@ export type TrackPoint = {
   distance: number;
   /** Rise over horizontal run towards the next point */
   grade: number;
+  /** Cross-slope of the road surface: rise per metre to the right (negative = right side lower) */
+  bank: number;
 };
 
 export type Track = {
@@ -20,12 +22,19 @@ export type TrackPose = {
   y: number;
   z: number;
   grade: number;
+  /** Cross-slope, as on `TrackPoint` */
+  bank: number;
   /** Unit heading in the xz plane */
   dirX: number;
   dirZ: number;
 };
 
 const SAMPLES = 600;
+/** Bends are banked in proportion to curvature (1/m), up to a cross-slope of MAX_BANK. */
+const BANK_PER_CURVATURE = 1.8;
+const MAX_BANK = 0.07;
+/** Curvature is averaged over this far either side so the bank eases into and out of a bend, m. */
+const BANK_EASE_M = 10;
 
 type Vec3 = { x: number; y: number; z: number };
 
@@ -39,11 +48,24 @@ const closeLoop = (name: string, raw: Vec3[]): Track => {
     const p = raw[i] as Vec3;
     const next = raw[(i + 1) % n] as Vec3;
     const run = Math.hypot(next.x - p.x, next.z - p.z);
-    points.push({ ...p, distance, grade: (next.y - p.y) / run });
+    points.push({ ...p, distance, grade: (next.y - p.y) / run, bank: 0 });
     distance += Math.hypot(run, next.y - p.y);
     minY = Math.min(minY, p.y);
   }
-  return { name, points, length: distance, minY };
+  const track = { name, points, length: distance, minY };
+  // Inside of the bend lower: positive curvature bends right, so the right side drops.
+  const banks = points.map((p) => {
+    const k =
+      (curvatureAt(track, p.distance - BANK_EASE_M) +
+        curvatureAt(track, p.distance) +
+        curvatureAt(track, p.distance + BANK_EASE_M)) /
+      3;
+    return Math.max(-MAX_BANK, Math.min(MAX_BANK, -k * BANK_PER_CURVATURE));
+  });
+  points.forEach((p, i) => {
+    p.bank = banks[i] as number;
+  });
+  return track;
 };
 
 /** A sine term: `amp * sin(freq * angle + phase)`. `freq` must be a whole number so the loop closes. */
@@ -187,20 +209,6 @@ export const buildCircuit = (spec: CircuitSpec): Track => {
   return closeLoop(spec.name, raw);
 };
 
-/** The original ~2.1 km rolling circuit: a couple of punchy climbs (up to ~6%) and matching descents. */
-export const HILL_LOOP = buildLoop({
-  name: 'Rolling Hills Circuit',
-  radius: 300,
-  bends: [
-    { amp: 60, freq: 3 },
-    { amp: 25, freq: 5, phase: Math.PI / 2 }
-  ],
-  hills: [
-    { amp: 7, freq: 2 },
-    { amp: 3, freq: 3, phase: 1 }
-  ]
-});
-
 /** Metres climbed in one lap. */
 export const lapClimb = (track: Track) =>
   track.points.reduce((sum, p, i) => {
@@ -221,6 +229,10 @@ const indexAt = (track: Track, d: number) => {
   return lo;
 };
 
+/** Road surface height `lateral` m right of the centre line (clamped to the road's edge) for a pose. */
+export const surfaceY = (pose: Pick<TrackPose, 'y' | 'bank'>, lateral: number, halfWidth: number) =>
+  pose.y + pose.bank * Math.max(-halfWidth, Math.min(halfWidth, lateral));
+
 /** Position, grade and heading at a distance along the track. Wraps for multi-lap distances. */
 export const poseAt = (track: Track, distance: number): TrackPose => {
   const d = ((distance % track.length) + track.length) % track.length;
@@ -238,6 +250,7 @@ export const poseAt = (track: Track, distance: number): TrackPose => {
     y: a.y + (b.y - a.y) * t,
     z: a.z + dz * t,
     grade: a.grade,
+    bank: a.bank + (b.bank - a.bank) * t,
     dirX: dx / len,
     dirZ: dz / len
   };
@@ -258,3 +271,17 @@ export const curvatureAt = (track: Track, distance: number) => {
   // Heading angle grows when turning left, so negate for "positive = right".
   return -turn / (CURVATURE_SPAN_M * 2);
 };
+
+/** The original ~2.1 km rolling circuit: a couple of punchy climbs (up to ~6%) and matching descents. */
+export const HILL_LOOP = buildLoop({
+  name: 'Rolling Hills Circuit',
+  radius: 300,
+  bends: [
+    { amp: 60, freq: 3 },
+    { amp: 25, freq: 5, phase: Math.PI / 2 }
+  ],
+  hills: [
+    { amp: 7, freq: 2 },
+    { amp: 3, freq: 3, phase: 1 }
+  ]
+});

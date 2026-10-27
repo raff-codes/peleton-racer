@@ -9,7 +9,8 @@ export type RoadPoint = { x: number; y: number; z: number };
 
 export type RoadFrame = {
   /**
-   * A point `lateral` m to the right of the centre line at `distance` (wraps), at road height.
+   * A point `lateral` m to the right of the centre line at `distance` (wraps), at road height
+   * (banked; beyond the road's edge it stays at the edge's height).
    * Matches the road ribbon exactly: offsets are taken per track sample with that sample's
    * heading, then interpolated, which is how the scene triangulates the road.
    */
@@ -47,11 +48,12 @@ export const createRoadFrame = (track: Track): RoadFrame => {
     const nb = normals[j] as { x: number; z: number };
     const segment = (j === 0 ? length : b.distance) - a.distance;
     const t = segment > 0 ? (d - a.distance) / segment : 0;
+    const edge = Math.max(-ROAD_WIDTH / 2, Math.min(ROAD_WIDTH / 2, lateral));
     const ax = a.x + na.x * lateral;
     const az = a.z + na.z * lateral;
     return {
       x: ax + (b.x + nb.x * lateral - ax) * t,
-      y: a.y + (b.y - a.y) * t,
+      y: a.y + a.bank * edge + (b.y + b.bank * edge - (a.y + a.bank * edge)) * t,
       z: az + (b.z + nb.z * lateral - az) * t
     };
   };

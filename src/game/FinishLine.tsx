@@ -38,7 +38,8 @@ export const FinishLine = ({ track, roadWidth }: { track: Track; roadWidth: numb
   return (
     <group
       position={[pose.x, pose.y, pose.z]}
-      rotation={[-Math.atan(pose.grade), Math.atan2(pose.dirX, pose.dirZ), 0, 'YXZ']}
+      // Rolled with the road's bank (local +x is the rider's left, so it rises by −bank per metre).
+      rotation={[-Math.atan(pose.grade), Math.atan2(pose.dirX, pose.dirZ), -Math.atan(pose.bank), 'YXZ']}
     >
       {[-1, 1].map((side) => (
         <mesh key={side} position={[side * (roadWidth / 2 + 0.5), POST_HEIGHT / 2, 0]}>

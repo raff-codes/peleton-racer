@@ -4,7 +4,7 @@ import { poseAt, type TrackPoint } from '../track';
 import { ROAD_WIDTH, type WorldContext, type WorldLayer } from './types';
 
 /**
- * The road surface: a flat ribbon at the track height, one cross-section per track sample.
+ * The road surface: a ribbon at the track height, banked through bends, one cross-section per track sample.
  * Roadside markings and verges are built to match this exact triangulation.
  */
 export const createRoadLayer = ({ track, theme }: WorldContext): WorldLayer => {
@@ -16,7 +16,16 @@ export const createRoadLayer = ({ track, theme }: WorldContext): WorldLayer => {
     // Right-hand normal of the heading in the xz plane.
     const nx = -pose.dirZ;
     const nz = pose.dirX;
-    positions.push(pose.x - nx * half, pose.y, pose.z - nz * half, pose.x + nx * half, pose.y, pose.z + nz * half);
+    // Banked: the right edge sits `bank × half` above the centre line.
+    const lift = pose.bank * half;
+    positions.push(
+      pose.x - nx * half,
+      pose.y - lift,
+      pose.z - nz * half,
+      pose.x + nx * half,
+      pose.y + lift,
+      pose.z + nz * half
+    );
   }
   const index: number[] = [];
   for (let i = 0; i < n; i++) {

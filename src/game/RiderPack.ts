@@ -10,7 +10,8 @@ import {
   solveLeg
 } from './models/riderModel';
 import type { Race, Rider } from './race';
-import { curvatureAt, poseAt } from './track';
+import { curvatureAt, poseAt, surfaceY } from './track';
+import { ROAD_WIDTH } from './world/types';
 
 const MAX_LEAN_RAD = 0.6;
 /** A sleepy rider wobbles side to side: amplitude, rate (rad/s) and how fast it fades in and out. */
@@ -110,7 +111,11 @@ export class RiderPack {
       if (!node || node.id !== rider.id) return;
 
       const pose = poseAt(race.track, rider.distance);
-      node.root.position.set(pose.x - pose.dirZ * rider.lane, pose.y, pose.z + pose.dirX * rider.lane);
+      node.root.position.set(
+        pose.x - pose.dirZ * rider.lane,
+        surfaceY(pose, rider.lane, ROAD_WIDTH / 2),
+        pose.z + pose.dirX * rider.lane
+      );
       node.root.rotation.set(-Math.atan(pose.grade), Math.atan2(pose.dirX, pose.dirZ), 0, 'YXZ');
       // Lean into corners like a real bike: tan(lean) = v²κ / g.
       const lean = Math.atan((rider.speed * rider.speed * curvatureAt(race.track, rider.distance)) / G);

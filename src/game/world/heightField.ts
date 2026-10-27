@@ -37,7 +37,7 @@ const CUT_FILL_EASE_M = 3;
  * its noise hills are calmed there, fading back to fully natural further out.
  */
 const RELIEF_CELL_M = 20;
-const RELIEF_SIGMA_M = 90;
+const RELIEF_SIGMA_M = 45;
 /** Every n-th track point is enough for a field this smooth. */
 const RELIEF_POINT_STRIDE = 3;
 const RELIEF_FADE = { start: 60, end: 260 };
