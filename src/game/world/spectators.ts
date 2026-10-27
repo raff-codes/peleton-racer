@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
 import { poseAt, type Track } from '../track';
+import { clearOfLandmarks, landmarkSpans } from './landmarks';
 import { createRandom } from './noise';
 import type { RoadFrame } from './roadsideMarkings';
 import { buildSpectatorGeometry, PAINT_SHIRT, PAINT_SKIN, SHOULDER } from './roadsideModels';
@@ -53,12 +54,18 @@ const placeFans = (ctx: WorldContext, frame: RoadFrame) => {
   const { finish, climbs } = crowdZones(track);
   const fans: Fan[] = [];
   const counts = { finish: 0, climbs: 0 };
+  const covered = landmarkSpans(ctx.landmarks);
+  const inLandmarkSpan = (d: number) => {
+    const lap = ((d % track.length) + track.length) % track.length;
+    return covered.some((s) => lap >= s.from && lap < s.to);
+  };
 
   const tryPlace = (d: number, side: number, energy: number) => {
     const lateral = side * (NEAR_LATERAL + random() * (FAR_LATERAL - NEAR_LATERAL));
     const p = frame.at(d, lateral);
     if (fans.some((f) => Math.hypot(f.x - p.x, f.z - p.z) < MIN_SPACING_M)) return false;
     if (ground.isWater(p.x, p.z)) return false;
+    if (!clearOfLandmarks(ctx.landmarks, p.x, p.z) || inLandmarkSpan(d)) return false;
     // Another part of the loop could pass close by; keep off every road, not just this one.
     const hit = road.nearest(p.x, p.z);
     if (hit && hit.distance < NEAR_LATERAL - 0.2) return false;

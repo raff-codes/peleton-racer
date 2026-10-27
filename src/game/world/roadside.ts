@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 import { curvatureAt, poseAt, type Track } from '../track';
+import { clearOfLandmarks, landmarkSpans } from './landmarks';
 import { createRandom } from './noise';
 import { HIGH } from './quality';
 import { buildMarkings, createMarkingsMaterial, createRoadFrame, type RoadFrame } from './roadsideMarkings';
@@ -76,7 +77,12 @@ const smoothCurvature = (track: Track, d: number) => {
 const buildFences = (ctx: WorldContext, frame: RoadFrame, detail: number) => {
   const { track, ground, theme } = ctx;
   const { finish, climbs } = crowdZones(track);
-  const keepOut = [...climbs, { from: finish.from - 30, to: track.length }, { from: 0, to: 40 }];
+  const keepOut = [
+    ...climbs,
+    ...landmarkSpans(ctx.landmarks),
+    { from: finish.from - 30, to: track.length },
+    { from: 0, to: 40 }
+  ];
   const rails = detail < 0.75 ? [0.75] : [0.5, 0.9];
   const parts: THREE.BufferGeometry[] = [];
 
@@ -134,7 +140,10 @@ const buildSigns = (ctx: WorldContext, frame: RoadFrame) => {
   const red = barrier[1] ?? '#d7262e';
   const band = flags[2] ?? '#2d7ff9';
   const parts: THREE.BufferGeometry[] = [];
+  const covered = landmarkSpans(ctx.landmarks);
   for (let d = MARKER_SPACING_M, k = 1; d < track.length - 50; d += MARKER_SPACING_M, k++) {
+    // A board would stand inside a gallery; that one's skipped.
+    if (inSpans(d, covered, 5)) continue;
     parts.push(standAt(ctx, frame, buildMarkerSign(marker, band, k), d, SIGN_LATERAL));
   }
   for (const side of [-1, 1]) {
@@ -226,7 +235,7 @@ const buildHayBales = (ctx: WorldContext, detail: number) => {
     0.6;
   const usable = (x: number, z: number) => {
     const hit = road.nearest(x, z);
-    return (!hit || hit.distance > 15) && !ground.isWater(x, z) && level(x, z);
+    return (!hit || hit.distance > 15) && !ground.isWater(x, z) && clearOfLandmarks(ctx.landmarks, x, z) && level(x, z);
   };
 
   for (let attempt = 0; parts.length < target && attempt < target * 30; attempt++) {

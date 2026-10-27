@@ -1,4 +1,5 @@
 import { buildCircuit, buildLoop, HILL_LOOP, lapClimb, type Track } from './track';
+import type { Landmark } from './world/landmarks';
 import { THEMES, type Theme } from './world/theme';
 
 /**
@@ -14,14 +15,24 @@ export type GameMap = {
   tagline: string;
   track: Track;
   theme: Theme;
+  /** Set-pieces along the course, so each lap has something to recognise */
+  landmarks: Landmark[];
 };
 
-const map = (id: MapId, name: string, tagline: string, track: Track, theme: Theme): GameMap => ({
+const map = (
+  id: MapId,
+  name: string,
+  tagline: string,
+  track: Track,
+  theme: Theme,
+  landmarks: Landmark[] = []
+): GameMap => ({
   id,
   name,
   tagline,
   track,
-  theme
+  theme,
+  landmarks
 });
 
 /** A control point `deg` round from +x and `r` m out, at height `y` m. */
@@ -82,7 +93,9 @@ export const MAPS: GameMap[] = [
         polar(340, 254, 0)
       ]
     }),
-    THEMES.alpine
+    THEMES.alpine,
+    // On the high ground at the top of the first climb, door to the road.
+    [{ kind: 'chapel', at: 540, lateral: -30, yaw: -Math.PI / 2 }]
   ),
   map(
     'winter-2',
@@ -128,7 +141,9 @@ export const MAPS: GameMap[] = [
         polar(340, 300, 0)
       ]
     }),
-    THEMES.winter
+    THEMES.winter,
+    // Over the road on the summit leg, after the last hairpin.
+    [{ kind: 'snowGallery', at: 1400, lateral: 0 }]
   ),
   map(
     'autumn-2',
@@ -167,7 +182,9 @@ export const MAPS: GameMap[] = [
         ] as const
       ).map(([r, y], i) => polar(i * 15, r, y))
     }),
-    THEMES.autumn
+    THEMES.autumn,
+    // Above the last flat before the final kicker, facing the riders as they come up to it.
+    [{ kind: 'ruinedTower', at: -120, lateral: -34, yaw: Math.PI }]
   ),
   map(
     'golden-2',
@@ -192,7 +209,9 @@ export const MAPS: GameMap[] = [
         [-120, -238, 0]
       ]
     }),
-    THEMES.golden
+    THEMES.golden,
+    // On the lake shore halfway down the finishing straight, the jetty running out over the water.
+    [{ kind: 'boathouse', at: -140, lateral: 84, yaw: -Math.PI / 2 }]
   )
 ];
 

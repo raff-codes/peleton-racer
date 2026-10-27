@@ -3,6 +3,7 @@ import type * as THREE from 'three';
 import type { Track } from '../track';
 import type { ShadowCaster } from './groundShadows';
 import type { HeightField } from './heightField';
+import type { PlacedLandmark } from './landmarks';
 import type { QualitySettings } from './quality';
 import type { RoadQuery } from './roadQuery';
 import type { Theme } from './theme';
@@ -19,6 +20,8 @@ export type WorldContext = {
   ground: HeightField;
   /** Ground shadows to draw, added to by the layers that place things (see `createGroundShadowsLayer`) */
   shadows: ShadowCaster[];
+  /** The map's set-pieces, placed on the track; other layers keep clear of them */
+  landmarks: PlacedLandmark[];
 };
 
 /**

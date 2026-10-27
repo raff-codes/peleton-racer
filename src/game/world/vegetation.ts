@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
 import { poseAt } from '../track';
+import { clearOfLandmarks } from './landmarks';
 import { createRandom, fbm, lerp, smoothstep } from './noise';
 import { ROAD_WIDTH, type WorldContext, type WorldLayer } from './types';
 import {
@@ -151,6 +152,7 @@ export const createVegetationLayer = (ctx: WorldContext): WorldLayer => {
       const nearLine = hit.along < GANTRY_ALONG_M || hit.along > track.length - GANTRY_ALONG_M;
       if (nearLine && hit.distance < GANTRY_LATERAL_M) return null;
     }
+    if (!clearOfLandmarks(ctx.landmarks, x, z)) return null;
     const y = ground.heightAt(x, z);
     if (y - ground.baseY > maxHeight) return null;
     if (ground.isWater(x, z)) return null;

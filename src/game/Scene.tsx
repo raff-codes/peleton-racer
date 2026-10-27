@@ -83,7 +83,7 @@ const timeScaleAfterFinish = (sinceFinish: number | null) => {
 const Scenery = ({ map }: { map: GameMap }) => {
   const quality = useSettings((s) => s.quality);
   const preset = quality === 'high' ? HIGH : LOW;
-  const world = React.useMemo(() => createWorld(map.track, map.theme, preset), [map, preset]);
+  const world = React.useMemo(() => createWorld(map.track, map.theme, preset, map.landmarks), [map, preset]);
   const { fog } = map.theme;
   const elapsed = React.useRef(0);
 
