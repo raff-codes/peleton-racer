@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { PersonalBest } from '../data/session';
-import { type HudStanding, useHud } from '../game/hudStore';
+import { type HudChallenges, type HudStanding, useHud } from '../game/hudStore';
 import { PLAYER_ID, type RideMode } from '../game/race';
 import { useSettings } from '../game/settings';
 
@@ -40,6 +40,15 @@ const PersonalBestLine = ({ pb, finishedAt }: { pb: PersonalBest | null; finishe
   );
 };
 
+const ChallengeLine = ({ challenges }: { challenges: HudChallenges | null }) => {
+  if (!challenges?.attempted) return null;
+  return (
+    <Text style={styles.challenges}>
+      Challenges {challenges.passed}/{challenges.attempted} · {challenges.score} pts
+    </Text>
+  );
+};
+
 /** Rows shown in the results: the podium and top five, plus the player's own row if they're further down. */
 const RESULT_ROWS = 5;
 const resultRows = (standings: HudStanding[]) => {
@@ -52,7 +61,7 @@ const resultRows = (standings: HudStanding[]) => {
 
 /** Final classification and the player's numbers, shown once they've crossed the line. */
 export const Results = ({ mode }: { mode: RideMode }) => {
-  const { finishedAt, elapsed, position, standings, stats, restart, personalBest } = useHud();
+  const { finishedAt, elapsed, position, standings, stats, challenges, restart, personalBest } = useHud();
   const endRide = useSettings((s) => s.endRide);
   if (finishedAt === null || elapsed < finishedAt + RESULTS_DELAY_S) return null;
 
@@ -66,6 +75,7 @@ export const Results = ({ mode }: { mode: RideMode }) => {
       <Text style={styles.time}>{formatRaceTime(finishedAt)}</Text>
 
       <PersonalBestLine finishedAt={finishedAt} pb={personalBest} />
+      <ChallengeLine challenges={challenges} />
       {standings.length > 1 ? (
         <View style={styles.table}>
           {resultRows(standings).map(({ rider: r, index: i, gapBefore }) => {
@@ -121,6 +131,7 @@ const styles = StyleSheet.create({
   time: { color: '#fff', fontSize: 26, fontWeight: '700', fontVariant: ['tabular-nums'], marginTop: 2 },
   pb: { color: '#ffd23f', fontSize: 18, fontWeight: '800', marginTop: 6 },
   pbMissed: { color: '#9aa4b2', fontSize: 16, fontWeight: '600', marginTop: 6 },
+  challenges: { color: '#cfd6df', fontSize: 16, fontWeight: '700', marginTop: 6, fontVariant: ['tabular-nums'] },
   table: { alignSelf: 'stretch', marginTop: 18 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 10, borderRadius: 8 },
   rowAfterGap: { marginTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)' },

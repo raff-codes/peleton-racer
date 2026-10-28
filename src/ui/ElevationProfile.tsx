@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Line, Path } from 'react-native-svg';
 
+import { CHALLENGE_STYLE, challengeDistance, challengeKind, nextInSlot, SLOTS } from '../game/challenges';
 import { useHud } from '../game/hudStore';
 import { PLAYER_ID } from '../game/race';
 import { poseAt, type Track } from '../game/track';
@@ -10,8 +11,39 @@ const WIDTH = 560;
 const HEIGHT = 84;
 const PAD = 8;
 
+/** A tick for each gate and drill on the lap, coloured by what the player will meet there next. */
+const ChallengeTicks = ({ track }: { track: Track }) => {
+  const distanceM = useHud((s) => s.distanceM);
+  const laps = useHud((s) => s.laps);
+  return SLOTS.map((slot, i) => {
+    const index = nextInSlot(track, i, distanceM);
+    if (challengeDistance(track, index) >= track.length * laps) return null;
+    const x = PAD + slot.fraction * (WIDTH - PAD * 2);
+    return (
+      <Line
+        key={i}
+        stroke={CHALLENGE_STYLE[challengeKind(index)].color}
+        strokeWidth={slot.type === 'gate' ? 4 : 3}
+        x1={x}
+        x2={x}
+        y1={PAD / 2}
+        y2={HEIGHT}
+      />
+    );
+  });
+};
+
 /** One lap's elevation with every rider's position on it, so climbs are visible before they arrive. */
-export const ElevationProfile = ({ track, color }: { track: Track; color: string }) => {
+export const ElevationProfile = ({
+  track,
+  color,
+  challenges
+}: {
+  track: Track;
+  color: string;
+  /** Mark the gates and drills on the lap */
+  challenges: boolean;
+}) => {
   const standings = useHud((s) => s.standings);
 
   const { fill, line, toPoint } = React.useMemo(() => {
@@ -40,6 +72,7 @@ export const ElevationProfile = ({ track, color }: { track: Track; color: string
       <Svg height={HEIGHT} width={WIDTH}>
         <Path d={fill} fill={color} opacity={0.35} />
         <Path d={line} fill='none' stroke={color} strokeWidth={2} />
+        {challenges && <ChallengeTicks track={track} />}
         {ordered.map((r) => {
           const p = toPoint(r.lapFraction);
           return (

@@ -1,4 +1,5 @@
 import type { RideTrace } from '../data/types';
+import { type ChallengeState, createChallenges, stepChallenges } from './challenges';
 import { type Mood, stepMood } from './mood';
 import { RIDER, stepSpeed } from './physics';
 import { poseAt, type Track } from './track';
@@ -36,8 +37,8 @@ export type Rider = {
 export type RideMode = 'race' | 'timeTrial' | 'freeRide';
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
-/** What the rider picked on the menu. */
-export type RideSetup = { mode: RideMode; laps: number; difficulty: Difficulty };
+/** What the rider picked on the menu. `challenges` adds power gates and cadence drills to the road. */
+export type RideSetup = { mode: RideMode; laps: number; difficulty: Difficulty; challenges: boolean };
 
 /** Bot watts are scaled by this; the roster's base efforts are tuned for "normal". */
 export const DIFFICULTY_SCALE: Record<Difficulty, number> = { easy: 0.75, normal: 1, hard: 1.3 };
@@ -103,6 +104,10 @@ export type Race = {
   elapsed: number;
   /** Player power after smoothing; raw sensor readings are too jumpy to drive speed directly */
   playerPower: number;
+  /** Player cadence after the same smoothing, rpm; judged by the cadence drills */
+  playerCadence: number;
+  /** Power gates and cadence drills, when picked on the menu */
+  challenges: ChallengeState | null;
   stats: RaceStats;
   /** The player's ride so far, sampled every TRACE_INTERVAL_S of race time; saved as a future ghost */
   trace: RideTrace;
@@ -204,6 +209,8 @@ export const createRace = (
     countdown: COUNTDOWN_S,
     elapsed: 0,
     playerPower: 0,
+    playerCadence: 0,
+    challenges: setup.challenges ? createChallenges() : null,
     stats: { energyJ: 0, distanceM: 0, maxPower: 0, maxSpeed: 0, draftSeconds: 0 },
     trace: { t: [], d: [] },
     riders: [
@@ -336,11 +343,13 @@ const botEffort = (race: Race, rider: Rider, base: number, raceDistance: number)
 };
 
 /** Advances the race. Nothing moves until the player pedals and the countdown ends. */
-export const stepRace = (race: Race, rawPlayerPower: number, dt: number) => {
-  race.playerPower += (rawPlayerPower - race.playerPower) * (1 - Math.exp(-dt / POWER_SMOOTHING_S));
+export const stepRace = (race: Race, sensors: { power: number; cadence: number }, dt: number) => {
+  const smoothing = 1 - Math.exp(-dt / POWER_SMOOTHING_S);
+  race.playerPower += (sensors.power - race.playerPower) * smoothing;
+  race.playerCadence += (sensors.cadence - race.playerCadence) * smoothing;
 
   if (race.phase === 'waiting') {
-    if (rawPlayerPower > 0) race.phase = 'countdown';
+    if (sensors.power > 0) race.phase = 'countdown';
     return;
   }
   if (race.phase === 'countdown') {
@@ -388,7 +397,10 @@ export const stepRace = (race: Race, rawPlayerPower: number, dt: number) => {
 
     const isPlayer = rider.botPower === null;
     stepMood(rider, power, rider.massKg, dt, rider.finishedAt === null);
-    if (isPlayer && rider.finishedAt === null) recordTrace(race, rider.distance);
+    if (isPlayer && rider.finishedAt === null) {
+      recordTrace(race, rider.distance);
+      if (race.challenges) stepChallenges(race.challenges, race, rider, dt);
+    }
 
     if (rider.finishedAt === null && rider.distance >= raceDistance) {
       rider.finishedAt = race.elapsed;

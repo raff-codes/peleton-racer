@@ -4,9 +4,11 @@ import * as THREE from 'three';
 
 import { useBike } from '../bike/store';
 import { beginSession, ghostsFor, playerForActiveProfile, saveFinishedRide } from '../data/session';
+import { ChallengeMarkers } from './ChallengeMarkers';
+import { challengeAt, challengeWatts, DRILL_S } from './challenges';
 import { useDevTools } from './devTools';
 import { Confetti, FinishLine } from './FinishLine';
-import { useHud } from './hudStore';
+import { type HudChallenges, useHud } from './hudStore';
 import { MoodEffects } from './MoodEffects';
 import type { GameMap } from './maps';
 import { RiderPack } from './RiderPack';
@@ -125,6 +127,7 @@ const World = ({ map, setup }: { map: GameMap; setup: RideSetup }) => {
   const pack = React.useMemo(() => new RiderPack(race.riders), [race]);
   const moods = React.useMemo(() => new MoodEffects(race.riders.length), [race]);
   const confetti = React.useMemo(() => new Confetti(), []);
+  const markers = React.useMemo(() => (race.challenges ? new ChallengeMarkers(race, ROAD_WIDTH) : null), [race]);
   const lookTarget = React.useRef(new THREE.Vector3());
   /** Real (unscaled) seconds since the player crossed the line. */
   const sinceFinish = React.useRef<number | null>(null);
@@ -137,8 +140,9 @@ const World = ({ map, setup }: { map: GameMap; setup: RideSetup }) => {
       pack.dispose();
       moods.dispose();
       confetti.dispose();
+      markers?.dispose();
     },
-    [pack, moods, confetti]
+    [pack, moods, confetti, markers]
   );
 
   useFrame(({ camera }, rawDt) => {
@@ -146,7 +150,7 @@ const World = ({ map, setup }: { map: GameMap; setup: RideSetup }) => {
     const realDt = useSettings.getState().paused ? 0 : Math.min(rawDt, MAX_DT);
     const dt = realDt * timeScaleAfterFinish(sinceFinish.current);
     const { sample } = useBike.getState();
-    stepRace(race, sample.power, dt);
+    stepRace(race, sample, dt);
 
     const player = race.riders.find((r) => r.id === PLAYER_ID) as Rider;
     const { moodOverride } = useDevTools.getState();
@@ -166,6 +170,7 @@ const World = ({ map, setup }: { map: GameMap; setup: RideSetup }) => {
     );
     moods.update(race, pack, dt, camera);
     confetti.update(dt);
+    markers?.update(race);
 
     // Lerp towards the goal to hide corner snapping and blend between camera modes.
     cameraGoals(race, poseAt(race.track, player.distance), sinceFinish.current);
@@ -200,6 +205,7 @@ const World = ({ map, setup }: { map: GameMap; setup: RideSetup }) => {
       <primitive object={pack.root} />
       <primitive object={moods.root} />
       <primitive object={confetti.points} />
+      {markers && <primitive object={markers.root} />}
     </>
   );
 };
@@ -237,8 +243,36 @@ const publishHud = (race: Race, fps: number) => {
       maxSpeedKmh: race.stats.maxSpeed * 3.6,
       draftSeconds: race.stats.draftSeconds
     },
+    challenges: hudChallenges(race, player),
     fps
   });
+};
+
+/** How far ahead a gate or drill shows in the HUD: long enough to settle into the effort. */
+const CHALLENGE_PREVIEW_M = 250;
+
+const hudChallenges = (race: Race, player: Rider): HudChallenges | null => {
+  const state = race.challenges;
+  if (!state) return null;
+  const next = challengeAt(race.track, state.next);
+  const inM = next.distance - player.distance;
+  const upcoming = () => {
+    if (state.drill) {
+      const { kind, elapsed, onTarget } = state.drill;
+      const watts = challengeWatts(kind, player.massKg);
+      return { kind, inM: 0, watts, secondsLeft: DRILL_S - elapsed, onTarget: elapsed > 0 ? onTarget / elapsed : 0 };
+    }
+    if (inM > CHALLENGE_PREVIEW_M || next.distance >= race.track.length * race.laps) return null;
+    return { kind: next.kind, inM, watts: challengeWatts(next.kind, player.massKg), secondsLeft: null, onTarget: 0 };
+  };
+  return {
+    upcoming: upcoming(),
+    score: state.score,
+    streak: state.streak,
+    passed: state.passed,
+    attempted: state.attempted,
+    last: state.last && { ...state.last }
+  };
 };
 
 export const GameScene = ({ map, setup }: { map: GameMap; setup: RideSetup }) => {

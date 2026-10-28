@@ -43,7 +43,7 @@ type SettingsStore = {
 
 export const useSettings = create<SettingsStore>((set, get) => ({
   quality: defaultQuality(),
-  draft: { mapId: 'alpine', mode: 'race', laps: 2, difficulty: 'normal' },
+  draft: { mapId: 'alpine', mode: 'race', laps: 2, difficulty: 'normal', challenges: false },
   ride: null,
   paused: false,
   view: 'menu',

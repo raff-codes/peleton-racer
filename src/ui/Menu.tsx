@@ -132,7 +132,7 @@ const MapCard = ({ map, selected, onPress }: { map: GameMap; selected: boolean; 
 };
 
 /** A row of mutually exclusive options, sized for a finger on a moving bike. */
-const Chips = <T extends string | number>({
+const Chips = <T extends string | number | boolean>({
   options,
   value,
   onChange
@@ -175,6 +175,11 @@ const DIFFICULTIES: { value: Difficulty; label: string; detail: string }[] = [
   { value: 'easy', label: 'Easy', detail: wattDetail('easy') },
   { value: 'normal', label: 'Normal', detail: wattDetail('normal') },
   { value: 'hard', label: 'Hard', detail: wattDetail('hard') }
+];
+
+const CHALLENGE_OPTIONS: { value: boolean; label: string; detail: string }[] = [
+  { value: false, label: 'Off', detail: 'Just ride' },
+  { value: true, label: 'On', detail: 'Power gates, cadence drills' }
 ];
 
 /** Start screen: pick what to ride, where, and how far. */
@@ -270,6 +275,14 @@ export const Menu = () => {
             />
           </View>
         ) : null}
+        <View style={styles.option}>
+          <Text style={styles.optionLabel}>CHALLENGES</Text>
+          <Chips
+            onChange={(challenges) => updateDraft({ challenges })}
+            options={CHALLENGE_OPTIONS}
+            value={draft.challenges}
+          />
+        </View>
         <Pressable onPress={startRide} style={({ pressed }) => [styles.start, pressed && styles.startPressed]}>
           <Text style={styles.startText}>Start</Text>
           <Text style={styles.startDetail}>{map.name}</Text>
