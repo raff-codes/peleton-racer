@@ -180,7 +180,8 @@ class PelotonSensorsModule : Module() {
     try {
       request(V1_CMD_POWER) {
         logRaw("power", it)
-        power = it / 100.0
+        // Already watts on the original Bike (RB1VQ), unlike the Bike+ parcel's centiwatts.
+        power = it.toDouble()
       }
       request(V1_CMD_RPM) { cadence = it.toDouble() }
       request(V1_CMD_RESISTANCE) { resistance = it.toDouble() }

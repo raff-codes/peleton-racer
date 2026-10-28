@@ -1,7 +1,15 @@
 import type { GameMap } from '../game/maps';
 import { RIDER } from '../game/physics';
-import { type GhostEntry, PLAYER_ID, type PlayerEntry, type Race, type RideSetup, standings } from '../game/race';
-import { courseBests, insertRide } from './db';
+import {
+  DEFAULT_LEVEL_W,
+  type GhostEntry,
+  PLAYER_ID,
+  type PlayerEntry,
+  type Race,
+  type RideSetup,
+  standings
+} from '../game/race';
+import { courseBests, insertRide, riderLevelW } from './db';
 import { activeProfile } from './profiles';
 import type { NewRide } from './types';
 
@@ -19,8 +27,13 @@ let current: Session | null = null;
 export const playerForActiveProfile = (): PlayerEntry => {
   const profile = activeProfile();
   return profile
-    ? { name: profile.name, color: profile.color, massKg: profile.weightKg + RIDER.bikeKg }
-    : { name: 'You', color: '#ff5a1f', massKg: RIDER.massKg };
+    ? {
+        name: profile.name,
+        color: profile.color,
+        massKg: profile.weightKg + RIDER.bikeKg,
+        levelW: riderLevelW(profile.id) ?? DEFAULT_LEVEL_W
+      }
+    : { name: 'You', color: '#ff5a1f', massKg: RIDER.massKg, levelW: DEFAULT_LEVEL_W };
 };
 
 /**

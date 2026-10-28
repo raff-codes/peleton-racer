@@ -93,10 +93,10 @@ that service directly. This is the same approach the open-source [Grupetto](http
 overlay uses, re-implemented here in `modules/peloton-sensors`. It keeps working while the game is
 fullscreen, which screen-reading approaches can't.
 
-| Bike                         | Service                          | Protocol                                                                           |
-| ---------------------------- | -------------------------------- | ---------------------------------------------------------------------------------- |
-| Original Bike (`PLTN-RB1V*`) | `com.peloton.service.SensorData` | Messenger: one repeating request per metric (power in centiwatts, rpm, resistance) |
-| Bike+ (`PLTN-TTR01`)         | `com.onepeloton.affernetservice` | Binder `transact(14)` polled every 100 ms, returning a `BikeData` parcel           |
+| Bike                         | Service                          | Protocol                                                                      |
+| ---------------------------- | -------------------------------- | ----------------------------------------------------------------------------- |
+| Original Bike (`PLTN-RB1V*`) | `com.peloton.service.SensorData` | Messenger: one repeating request per metric (power in watts, rpm, resistance) |
+| Bike+ (`PLTN-TTR01`)         | `com.onepeloton.affernetservice` | Binder `transact(14)` polled every 100 ms, returning a `BikeData` parcel      |
 
 Access is **read-only by design**: the app never writes to the bike or changes its resistance. Hills are
 simulated in the physics instead. Off a Peloton (an emulator or a phone), the app falls back to a

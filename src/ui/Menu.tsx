@@ -2,10 +2,10 @@ import * as React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, Polygon, Rect, Stop } from 'react-native-svg';
 
-import { courseBests } from '../data/db';
+import { courseBests, riderLevelW } from '../data/db';
 import { useActiveProfile, useProfiles } from '../data/profiles';
 import { type GameMap, lapStats, MAPS } from '../game/maps';
-import { botWattRange, type Difficulty, type RideMode } from '../game/race';
+import { botWattRange, DEFAULT_LEVEL_W, type Difficulty, type RideMode } from '../game/race';
 import { useSettings } from '../game/settings';
 import type { Track } from '../game/track';
 import { createRandom } from '../game/world/noise';
@@ -166,16 +166,18 @@ const MODES: { value: RideMode; label: string; detail: string }[] = [
 
 const LAP_OPTIONS = [1, 2, 3, 5];
 
-const wattDetail = (difficulty: Difficulty) => {
-  const { min, max } = botWattRange(difficulty);
-  return `${min}–${max} W`;
-};
-
-const DIFFICULTIES: { value: Difficulty; label: string; detail: string }[] = [
-  { value: 'easy', label: 'Easy', detail: wattDetail('easy') },
-  { value: 'normal', label: 'Normal', detail: wattDetail('normal') },
-  { value: 'hard', label: 'Hard', detail: wattDetail('hard') }
+const DIFFICULTY_LABELS: { value: Difficulty; label: string }[] = [
+  { value: 'easy', label: 'Easy' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'hard', label: 'Hard' }
 ];
+
+/** The rivals' watts for this rider: the field scales to their recent rides. */
+const difficultiesFor = (levelW: number) =>
+  DIFFICULTY_LABELS.map(({ value, label }) => {
+    const { min, max } = botWattRange(value, levelW);
+    return { value, label, detail: `${min}–${max} W` };
+  });
 
 const CHALLENGE_OPTIONS: { value: boolean; label: string; detail: string }[] = [
   { value: false, label: 'Off', detail: 'Just ride' },
@@ -219,6 +221,10 @@ export const Menu = () => {
   const switchRider = useProfiles((s) => s.switchRider);
   const map = MAPS.find((m) => m.id === draft.mapId) ?? (MAPS[0] as GameMap);
   const lapKm = map.track.length / 1000;
+  const difficulties = React.useMemo(
+    () => difficultiesFor((profile ? riderLevelW(profile.id) : null) ?? DEFAULT_LEVEL_W),
+    [profile]
+  );
 
   return (
     <View style={styles.screen}>
@@ -270,7 +276,7 @@ export const Menu = () => {
             <Text style={styles.optionLabel}>RIVALS</Text>
             <Chips
               onChange={(difficulty) => updateDraft({ difficulty })}
-              options={DIFFICULTIES}
+              options={difficulties}
               value={draft.difficulty}
             />
           </View>
