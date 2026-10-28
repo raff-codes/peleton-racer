@@ -1,4 +1,5 @@
 import type { RideTrace } from '../data/types';
+import { type ChallengeState, createChallenges, stepChallenges } from './challenges';
 import { type Mood, stepMood } from './mood';
 import { RIDER, stepSpeed } from './physics';
 import { poseAt, type Track } from './track';
@@ -26,7 +27,7 @@ export type Rider = {
   draft: number;
   /** Seconds spent boxed in behind a slower wheel while having the legs to go faster */
   heldBack: number;
-  /** Cosmetic: sleepy or on fire from the player's effort; bots and ghosts stay normal */
+  /** Cosmetic: sleepy to inferno from the rider's effort, so a bot's attack shows; ghosts stay normal */
   mood: Mood;
   moodPending: number;
   finishedAt: number | null;
@@ -36,11 +37,14 @@ export type Rider = {
 export type RideMode = 'race' | 'timeTrial' | 'freeRide';
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
-/** What the rider picked on the menu. */
-export type RideSetup = { mode: RideMode; laps: number; difficulty: Difficulty };
+/** What the rider picked on the menu. `challenges` adds power gates and cadence drills to the road. */
+export type RideSetup = { mode: RideMode; laps: number; difficulty: Difficulty; challenges: boolean };
 
-/** Bot watts are scaled by this; the roster's base efforts are tuned for "normal". */
-export const DIFFICULTY_SCALE: Record<Difficulty, number> = { easy: 0.75, normal: 1, hard: 1.3 };
+/** Bot efforts are scaled by this on top of the rider's level. */
+export const DIFFICULTY_SCALE: Record<Difficulty, number> = { easy: 0.8, normal: 1, hard: 1.2 };
+
+/** Rider level for someone with no rides yet: a comfortable home-bike effort. */
+export const DEFAULT_LEVEL_W = 110;
 
 /**
  * How a bot spends its watts. Climbers dig in on steep ground, sprinters save it for the line,
@@ -48,22 +52,29 @@ export const DIFFICULTY_SCALE: Record<Difficulty, number> = { easy: 0.75, normal
  */
 export type BotStyle = 'steady' | 'climber' | 'sprinter' | 'rouleur';
 
-/** The bot field at "normal" difficulty: base watts spread so there's always someone near your level. */
-export const BOT_ROSTER: { id: string; name: string; color: string; watts: number; style: BotStyle }[] = [
-  { id: 'steady', name: 'Steady Sam', color: '#2d7ff9', watts: 125, style: 'steady' },
-  { id: 'dev', name: 'Domestique Dev', color: '#8d99ae', watts: 140, style: 'steady' },
-  { id: 'kai', name: 'Climbing Kai', color: '#06d6a0', watts: 150, style: 'climber' },
-  { id: 'rosa', name: 'Rouleur Rosa', color: '#ef476f', watts: 165, style: 'rouleur' },
-  { id: 'pete', name: 'Puncheur Pete', color: '#ffb703', watts: 180, style: 'climber' },
-  { id: 'tess', name: 'Tempo Tess', color: '#18b26b', watts: 195, style: 'steady' },
-  { id: 'sol', name: 'Sprinter Sol', color: '#f72585', watts: 205, style: 'sprinter' },
-  { id: 'bea', name: 'Breakaway Bea', color: '#4cc9f0', watts: 225, style: 'rouleur' },
-  { id: 'dan', name: 'Diesel Dan', color: '#b44dff', watts: 245, style: 'steady' }
+/**
+ * The bot field at "normal" difficulty. Each bot rides at `effort` × the rider's level (their recent
+ * average power), spread so the rider sits mid-pack: a fixed wattage field is either out of reach or
+ * a procession depending on who's on the bike.
+ */
+export const BOT_ROSTER: { id: string; name: string; color: string; effort: number; style: BotStyle }[] = [
+  { id: 'steady', name: 'Steady Sam', color: '#2d7ff9', effort: 0.7, style: 'steady' },
+  { id: 'dev', name: 'Domestique Dev', color: '#8d99ae', effort: 0.78, style: 'steady' },
+  { id: 'kai', name: 'Climbing Kai', color: '#06d6a0', effort: 0.84, style: 'climber' },
+  { id: 'rosa', name: 'Rouleur Rosa', color: '#ef476f', effort: 0.9, style: 'rouleur' },
+  { id: 'pete', name: 'Puncheur Pete', color: '#ffb703', effort: 0.97, style: 'climber' },
+  { id: 'tess', name: 'Tempo Tess', color: '#18b26b', effort: 1.04, style: 'steady' },
+  { id: 'sol', name: 'Sprinter Sol', color: '#f72585', effort: 1.1, style: 'sprinter' },
+  { id: 'bea', name: 'Breakaway Bea', color: '#4cc9f0', effort: 1.2, style: 'rouleur' },
+  { id: 'dan', name: 'Diesel Dan', color: '#b44dff', effort: 1.3, style: 'steady' }
 ];
 
-/** Base-watt range of the bot field at a difficulty, for the menu. */
-export const botWattRange = (difficulty: Difficulty) => {
-  const watts = BOT_ROSTER.map((b) => Math.round(b.watts * DIFFICULTY_SCALE[difficulty]));
+const botWatts = (effort: number, difficulty: Difficulty, levelW: number) =>
+  Math.round(effort * DIFFICULTY_SCALE[difficulty] * levelW);
+
+/** Base-watt range of the bot field at a difficulty for a rider of this level, for the menu. */
+export const botWattRange = (difficulty: Difficulty, levelW: number) => {
+  const watts = BOT_ROSTER.map((b) => botWatts(b.effort, difficulty, levelW));
   return { min: Math.min(...watts), max: Math.max(...watts) };
 };
 
@@ -103,6 +114,10 @@ export type Race = {
   elapsed: number;
   /** Player power after smoothing; raw sensor readings are too jumpy to drive speed directly */
   playerPower: number;
+  /** Player cadence after the same smoothing, rpm; judged by the cadence drills */
+  playerCadence: number;
+  /** Power gates and cadence drills, when picked on the menu */
+  challenges: ChallengeState | null;
   stats: RaceStats;
   /** The player's ride so far, sampled every TRACE_INTERVAL_S of race time; saved as a future ghost */
   trace: RideTrace;
@@ -113,7 +128,8 @@ export type Race = {
 export type GhostEntry = { id: string; name: string; color: string; trace: RideTrace };
 
 /** The player's identity and weight, from their profile. */
-export type PlayerEntry = { name: string; color: string; massKg: number };
+/** `levelW` is the rider's typical power; the bot field is scaled to it. */
+export type PlayerEntry = { name: string; color: string; massKg: number; levelW: number };
 
 export const PLAYER_ID = 'you';
 
@@ -123,8 +139,8 @@ const TRACE_INTERVAL_S = 1;
 const GHOST_LANES = [2.6, -2.4, 3.3, -3.2, 1.2];
 /** Time constant of the exponential smoothing on player power. */
 const POWER_SMOOTHING_S = 1.2;
-/** Bots hold a steady effort with a slow surge so they don't move in lockstep. */
-const BOT_SURGE_W = 15;
+/** Bots hold a steady effort with a slow surge of this fraction so they don't move in lockstep. */
+const BOT_SURGE = 0.08;
 
 /** Max drag reduction right on a wheel; tapers to nothing at DRAFT_END_GAP_M. */
 export const DRAFT_MAX = 0.3;
@@ -179,10 +195,9 @@ const makeRider = (
 export const createRace = (
   track: Track,
   setup: RideSetup,
-  player: PlayerEntry = { name: 'You', color: '#ff5a1f', massKg: RIDER.massKg },
+  player: PlayerEntry = { name: 'You', color: '#ff5a1f', massKg: RIDER.massKg, levelW: DEFAULT_LEVEL_W },
   ghosts: GhostEntry[] = []
 ): Race => {
-  const scale = DIFFICULTY_SCALE[setup.difficulty];
   // Bots fill the grid row by row; the player starts at the back so the chase camera sees the pack, not
   // nine riders between it and the player. Over a 2 km+ race the few metres are noise.
   const slot = (i: number) => ({
@@ -193,7 +208,12 @@ export const createRace = (
     setup.mode === 'race'
       ? BOT_ROSTER.map((b, i) => {
           const { lane, distance } = slot(i);
-          return makeRider(b.id, b.name, b.color, lane, Math.round(b.watts * scale), { style: b.style, distance });
+          // Same mass as the player, so the climbs treat everyone alike and only the watts differ.
+          return makeRider(b.id, b.name, b.color, lane, botWatts(b.effort, setup.difficulty, player.levelW), {
+            style: b.style,
+            distance,
+            massKg: player.massKg
+          });
         })
       : [];
   return {
@@ -204,6 +224,8 @@ export const createRace = (
     countdown: COUNTDOWN_S,
     elapsed: 0,
     playerPower: 0,
+    playerCadence: 0,
+    challenges: setup.challenges ? createChallenges() : null,
     stats: { energyJ: 0, distanceM: 0, maxPower: 0, maxSpeed: 0, draftSeconds: 0 },
     trace: { t: [], d: [] },
     riders: [
@@ -339,7 +361,7 @@ const traceTimeAt = (trace: RideTrace, distance: number) => {
 
 /** A bot's watts right now: its base effort, a slow surge, and a boost where its style is strongest. */
 const botEffort = (race: Race, rider: Rider, base: number, raceDistance: number) => {
-  const surge = BOT_SURGE_W * Math.sin(race.elapsed / 9 + base);
+  const surge = base * BOT_SURGE * Math.sin(race.elapsed / 9 + base);
   const { grade } = poseAt(race.track, rider.distance);
   let boost = 1;
   if (rider.botStyle === 'climber' && grade > CLIMB_GRADE) boost = CLIMBER_BOOST;
@@ -349,11 +371,13 @@ const botEffort = (race: Race, rider: Rider, base: number, raceDistance: number)
 };
 
 /** Advances the race. Nothing moves until the player pedals and the countdown ends. */
-export const stepRace = (race: Race, rawPlayerPower: number, dt: number) => {
-  race.playerPower += (rawPlayerPower - race.playerPower) * (1 - Math.exp(-dt / POWER_SMOOTHING_S));
+export const stepRace = (race: Race, sensors: { power: number; cadence: number }, dt: number) => {
+  const smoothing = 1 - Math.exp(-dt / POWER_SMOOTHING_S);
+  race.playerPower += (sensors.power - race.playerPower) * smoothing;
+  race.playerCadence += (sensors.cadence - race.playerCadence) * smoothing;
 
   if (race.phase === 'waiting') {
-    if (rawPlayerPower > 0) race.phase = 'countdown';
+    if (sensors.power > 0) race.phase = 'countdown';
     return;
   }
   if (race.phase === 'countdown') {
@@ -400,8 +424,11 @@ export const stepRace = (race: Race, rawPlayerPower: number, dt: number) => {
     }
 
     const isPlayer = rider.botPower === null;
-    if (isPlayer) stepMood(rider, power, rider.massKg, dt, rider.finishedAt === null);
-    if (isPlayer && rider.finishedAt === null) recordTrace(race, rider.distance);
+    stepMood(rider, power, rider.massKg, dt, rider.finishedAt === null);
+    if (isPlayer && rider.finishedAt === null) {
+      recordTrace(race, rider.distance);
+      if (race.challenges) stepChallenges(race.challenges, race, rider, dt);
+    }
 
     if (rider.finishedAt === null && rider.distance >= raceDistance) {
       rider.finishedAt = race.elapsed;

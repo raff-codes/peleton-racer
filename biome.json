@@ -10,7 +10,8 @@
       "!dist",
       "!**/*.config.js",
       "!modules/*/android/build",
-      "!pnpm-lock.yaml"
+      "!pnpm-lock.yaml",
+      "!.claude/worktrees"
     ]
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },

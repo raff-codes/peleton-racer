@@ -154,6 +154,24 @@ export const profileTotals = (profileId: number): ProfileTotals => {
   return { rides: row?.rides ?? 0, distanceM: row?.distance ?? 0, durationS: row?.duration ?? 0 };
 };
 
+/** Rides that count towards a rider's level: long enough to mean something, and real watts. */
+const LEVEL_RIDES = 5;
+const LEVEL_MIN_DURATION_S = 120;
+/** Rides saved before the original Bike's power was read in watts averaged about 1 W; skip them. */
+const LEVEL_MIN_POWER_W = 40;
+
+/** A rider's typical power: the mean average power of their last few rides, or null with none yet. */
+export const riderLevelW = (profileId: number): number | null => {
+  const row = db.getFirstSync<{ level: number | null }>(
+    `SELECT AVG(avg_power) AS level FROM (
+       SELECT avg_power FROM rides WHERE profile_id = ? AND duration_s >= ? AND avg_power >= ?
+       ORDER BY started_at DESC LIMIT ?
+     )`,
+    [profileId, LEVEL_MIN_DURATION_S, LEVEL_MIN_POWER_W, LEVEL_RIDES]
+  );
+  return row?.level ?? null;
+};
+
 /**
  * Each profile's fastest finished ride over a set distance on a course, fastest first. Any mode
  * counts: a race finish is as valid a time as a time trial. These are the household ghosts.

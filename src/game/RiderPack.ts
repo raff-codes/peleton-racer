@@ -18,6 +18,8 @@ const MAX_LEAN_RAD = 0.6;
 const DROWSY_SWAY_RAD = 0.09;
 const DROWSY_SWAY_RATE = 1.7;
 const DROWSY_EASE_S = 0.8;
+/** The bike reports whole-number rpm in steps; ease towards each reading so the legs don't lurch. */
+const CADENCE_EASE_S = 0.25;
 const G = 9.81;
 const FORWARD = new THREE.Vector3(0, 0, 1);
 const CRANK_AXIS = new THREE.Vector3(1, 0, 0);
@@ -41,6 +43,8 @@ type RiderNode = {
   root: THREE.Group;
   lean: THREE.Group;
   crankAngle: number;
+  /** Displayed rpm, eased towards the reported cadence */
+  cadence: number;
   /** 0–1: how far into the sleepy wobble, eased so it doesn't snap on or off */
   drowse: number;
   swayPhase: number;
@@ -77,7 +81,7 @@ export class RiderPack {
       lean.add(new THREE.Mesh(body, this.material));
       root.add(lean);
       this.root.add(root);
-      return { id: r.id, root, lean, crankAngle: riders.indexOf(r) * 1.3, drowse: 0, swayPhase: 0 };
+      return { id: r.id, root, lean, crankAngle: riders.indexOf(r) * 1.3, cadence: 0, drowse: 0, swayPhase: 0 };
     });
 
     const instanced = (geometry: THREE.BufferGeometry, count: number) => {
@@ -130,7 +134,8 @@ export class RiderPack {
         world.multiplyMatrices(node.root.matrixWorld, local.compose(SHADOW_OFFSET, SHADOW_FLAT, SHADOW_SCALE))
       );
 
-      node.crankAngle += (cadenceFor(rider) / 60) * Math.PI * 2 * dt;
+      node.cadence += (cadenceFor(rider) - node.cadence) * (1 - Math.exp(-dt / CADENCE_EASE_S));
+      node.crankAngle += (node.cadence / 60) * Math.PI * 2 * dt;
       const leanWorld = node.lean.matrixWorld;
 
       rotation.setFromAxisAngle(CRANK_AXIS, node.crankAngle);

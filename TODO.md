@@ -21,6 +21,7 @@ before starting the next, except for small polish items.
 - [x] Pedalling animation tied to real cadence (legs/cranks rotate), lean into corners
 - [x] Better bike + rider models (procedural low-poly, IK legs, 7 draw calls for the whole field)
 - [x] Rider moods from W/kg: sleepy wobble + rising Z's when soft-pedalling, flame trail when going hard
+- [x] Bots show moods too, so an attack or a sprint is visible on the road
 - [x] Camera: slight FOV widening with speed
 - [ ] Camera: optional second view (side/overhead) toggle
 - [x] Countdown start (3-2-1)
@@ -45,6 +46,8 @@ before starting the next, except for small polish items.
 - [ ] Ghosts in race mode too (bots + household), and picking which ghosts to race
 - [x] **Time trial**: solo against the clock
 - [ ] Time trial split times per lap vs your PB
+- [x] **Challenges** (menu toggle, any mode): power gates with a W/kg band, spin/grind cadence drills, streak multiplier
+- [ ] Save challenge scores and show a best per course
 - [ ] **Elimination**: last rider at the end of each lap is out
 - [ ] **Interval workouts as races**: power-zone targets on screen, bots ride the same plan
 - [ ] Bots scale to the rider: set FTP once, bot difficulty as % of FTP instead of fixed watts

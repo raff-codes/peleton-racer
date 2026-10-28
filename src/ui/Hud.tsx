@@ -9,6 +9,7 @@ import type { GameMap } from '../game/maps';
 import type { RideMode, RideSetup } from '../game/race';
 import { PLAYER_ID } from '../game/race';
 import { useSettings } from '../game/settings';
+import { ChallengeHud } from './ChallengeHud';
 import { ElevationProfile } from './ElevationProfile';
 import { PauseMenu } from './PauseMenu';
 import { Results } from './Results';
@@ -221,7 +222,8 @@ export const Hud = ({ map, setup }: { map: GameMap; setup: RideSetup }) => {
         <>
           {hasRivals ? <Standings /> : null}
           <DraftChip />
-          <ElevationProfile color={profileColor(map)} track={map.track} />
+          <ElevationProfile challenges={setup.challenges} color={profileColor(map)} track={map.track} />
+          <ChallengeHud />
           <LapCallout />
           <SprintChip />
         </>
