@@ -21,6 +21,7 @@ before starting the next, except for small polish items.
 - [x] Pedalling animation tied to real cadence (legs/cranks rotate), lean into corners
 - [x] Better bike + rider models (procedural low-poly, IK legs, 7 draw calls for the whole field)
 - [x] Rider moods from W/kg: sleepy wobble + rising Z's when soft-pedalling, flame trail when going hard
+- [x] Bots show moods too, so an attack or a sprint is visible on the road
 - [x] Camera: slight FOV widening with speed
 - [ ] Camera: optional second view (side/overhead) toggle
 - [x] Countdown start (3-2-1)

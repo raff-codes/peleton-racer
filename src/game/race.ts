@@ -26,7 +26,7 @@ export type Rider = {
   draft: number;
   /** Seconds spent boxed in behind a slower wheel while having the legs to go faster */
   heldBack: number;
-  /** Cosmetic: sleepy to inferno from the player's effort; bots and ghosts stay normal */
+  /** Cosmetic: sleepy to inferno from the rider's effort, so a bot's attack shows; ghosts stay normal */
   mood: Mood;
   moodPending: number;
   finishedAt: number | null;
@@ -387,7 +387,7 @@ export const stepRace = (race: Race, rawPlayerPower: number, dt: number) => {
     }
 
     const isPlayer = rider.botPower === null;
-    if (isPlayer) stepMood(rider, power, rider.massKg, dt, rider.finishedAt === null);
+    stepMood(rider, power, rider.massKg, dt, rider.finishedAt === null);
     if (isPlayer && rider.finishedAt === null) recordTrace(race, rider.distance);
 
     if (rider.finishedAt === null && rider.distance >= raceDistance) {

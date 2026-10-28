@@ -17,8 +17,9 @@ import type { Race } from './race';
  * from it, so flames lean into the wind and the wheels leave a short burning trail on the road.
  */
 
-const FLAME_COUNT = 120;
-const EMBER_COUNT = 40;
+/** Sprite pools are sized per rider: the whole field can be on fire on a hard climb or in the sprint. */
+const FLAME_COUNT_PER_RIDER = 64;
+const EMBER_COUNT_PER_RIDER = 20;
 /** Emission at full heat (inferno); scaled down with it. */
 const FLAME_RATE_PER_S = 110;
 const EMBER_RATE_PER_S = 30;
@@ -185,7 +186,9 @@ export class FireEffect {
   readonly mesh: THREE.Mesh<THREE.InstancedBufferGeometry, THREE.ShaderMaterial>;
 
   private readonly count: number;
-  private readonly glowStart = FLAME_COUNT + EMBER_COUNT;
+  private readonly flameCount: number;
+  private readonly emberCount: number;
+  private readonly glowStart: number;
   // Per sprite, uploaded every frame: world position, axis (relative motion), and t/size/seed/kind.
   private readonly pos: Float32Array;
   private readonly dir: Float32Array;
@@ -204,6 +207,9 @@ export class FireEffect {
   private readonly heat: number[];
 
   constructor(riderCount: number) {
+    this.flameCount = FLAME_COUNT_PER_RIDER * riderCount;
+    this.emberCount = EMBER_COUNT_PER_RIDER * riderCount;
+    this.glowStart = this.flameCount + this.emberCount;
     this.count = this.glowStart + riderCount;
     this.pos = new Float32Array(this.count * 3);
     this.dir = new Float32Array(this.count * 3);
@@ -215,7 +221,7 @@ export class FireEffect {
     this.heat = new Array(riderCount).fill(0);
 
     for (let i = 0; i < this.count; i++) {
-      const kind = i < FLAME_COUNT ? FLAME : i < this.glowStart ? EMBER : GLOW;
+      const kind = i < this.flameCount ? FLAME : i < this.glowStart ? EMBER : GLOW;
       // t = 1 (dead) and size 0 until spawned.
       this.params.set([1, 0, Math.random(), kind], i * 4);
     }
@@ -297,7 +303,7 @@ export class FireEffect {
       }
       any = true;
       const k = i * 3;
-      this.dir[k + 1] = (this.dir[k + 1] as number) + (i < FLAME_COUNT ? FLAME_BUOYANCY : -EMBER_SINK) * dt;
+      this.dir[k + 1] = (this.dir[k + 1] as number) + (i < this.flameCount ? FLAME_BUOYANCY : -EMBER_SINK) * dt;
       for (let a = 0; a < 3; a++) {
         this.pos[k + a] =
           (this.pos[k + a] as number) + ((this.carry[k + a] as number) + (this.dir[k + a] as number)) * dt;
@@ -321,7 +327,7 @@ export class FireEffect {
   /** Hotter flames are bigger, rise faster and burn longer. */
   private spawnFlame(anchor: THREE.Matrix4, speed: number, heat: number) {
     const i = this.nextFlame;
-    this.nextFlame = (i + 1) % FLAME_COUNT;
+    this.nextFlame = (i + 1) % this.flameCount;
     const { size, carry } = flameSource(point, heat);
     point.applyMatrix4(anchor);
     // Drift is relative to the rider: back at the speed it doesn't keep, plus its own rise.
@@ -337,8 +343,8 @@ export class FireEffect {
   }
 
   private spawnEmber(anchor: THREE.Matrix4, speed: number, heat: number) {
-    const i = FLAME_COUNT + this.nextEmber;
-    this.nextEmber = (this.nextEmber + 1) % EMBER_COUNT;
+    const i = this.flameCount + this.nextEmber;
+    this.nextEmber = (this.nextEmber + 1) % this.emberCount;
     flameSource(point, heat);
     point.applyMatrix4(anchor);
     this.spawn(i, 0.7, speed, between([1.5, 3]), 1.2, between(EMBER_SIZE_M), between(EMBER_LIFE_S));
